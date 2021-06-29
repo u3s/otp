@@ -610,7 +610,7 @@ connection({call, From},
            #state{connection_states = ConnectionStates,
                   static_env = #static_env{protocol_cb = Connection},
                   protocol_specific = #{sender := Sender} = PS,
-                  connection_env = CEnv
+                  connection_env = #connection_env{terminated = Terminated} = CEnv
                  } = State0) ->
     case tls_sender:downgrade(Sender, Timeout) of
         {ok, Write} ->
@@ -621,13 +621,30 @@ connection({call, From},
             State = Connection:send_alert(?ALERT_REC(?WARNING, ?CLOSE_NOTIFY),
                                           State0#state{connection_states =
                                                            ConnectionStates#{current_write => Write}}),
+            Actions0 = [{timeout, Timeout, downgrade}],
+            Actions =
+                case Terminated of
+                    false ->
+                        %% standard downgrade flow - process will not change
+                        %% socket controlling process until CLOSE_NOTIFY alert
+                        %% is received
+                        Actions0;
+                    true ->
+                        %% non-standard downgrade flow - process will change
+                        %% socket controlling PID instantly assuming CLOSE_NOTIFY
+                        %% alert was received before downgrade procedure was
+                        %% started on this side
+                        [{next_event, internal,
+                          #alert{level = ?WARNING,
+                                 description = ?CLOSE_NOTIFY}} | Actions0]
+                end,
             {next_state, downgrade, State#state{connection_env =
                                                     CEnv#connection_env{downgrade = {Pid, From},
                                                                         terminated = true},
                                                 protocol_specific = PS#{active_n_toggle => true,
                                                                         active_n => 1}
                                                },
-             [{timeout, Timeout, downgrade}]};
+             Actions};
         {error, timeout} ->
             {stop_and_reply, {shutdown, downgrade_fail}, [{reply, From, {error, timeout}}]}
     end;
