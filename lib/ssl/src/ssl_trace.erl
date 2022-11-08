@@ -400,7 +400,7 @@ trace_profiles() ->
       [{ssl, [{listen,2}, {connect,3}]},
        {ssl_gen_statem, [{init, 1}]},
        {tls_server_session_ticket, [{init,1}]}]},
-     {ssn, %%session
+     {ssn, %% session
       fun(M, F, A) -> dbg:tpl(M, F, A, x) end,
       fun(M, F, A) -> dbg:ctpl(M, F, A) end,
       [{tls_server_session_ticket,
@@ -413,5 +413,16 @@ trace_profiles() ->
          {stateless_usable_ticket,5}, {stateless_living_ticket,5}, {in_window,2},
          {stateless_anti_replay,4}]},
        {tls_handshake_1_3,
-        [{get_ticket_data,3}]}
-      ]}].
+        [{get_ticket_data,3}]}]},
+     {hbn, %% hibernate
+      fun(M, F, A) -> dbg:tpl(M, F, A, x) end,
+      fun(M, F, A) -> dbg:ctpl(M, F, A) end,
+      [{tls_sender,
+        [{connection, 3}, {hibernate_after, 3}]},
+       {dtls_connection,
+        [{connection,3},
+         {gen_info, 3}]},
+       {dtls_gen_connection,
+        [{handle_info,3}]},
+       {ssl_gen_statem,
+        [{hibernate_after, 3}, {handle_common_event, 4}]}]}].

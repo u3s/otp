@@ -105,7 +105,7 @@ tc_basic(_Config) ->
     ok = ssl_trace:stop(),
     undefined = whereis(ssl_trace),
 
-    [api, rle, ssn] = ssl_trace:start(),
+    [api, hbn, rle, ssn] = ssl_trace:start(),
     {ok, [api]} = ssl_trace:on(api),
     {ok, []} = ssl_trace:off(api),
     ok = ssl_trace:stop(),
