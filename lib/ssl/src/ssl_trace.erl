@@ -399,5 +399,19 @@ trace_profiles() ->
       fun(M, F, A) -> dbg:ctpl(M, F, A) end,
       [{ssl, [{listen,2}, {connect,3}]},
        {ssl_gen_statem, [{init, 1}]},
-       {tls_server_session_ticket, [{init,1}]}]}
-    ].
+       {tls_server_session_ticket, [{init,1}]}]},
+     {ssn, %%session
+      fun(M, F, A) -> dbg:tpl(M, F, A, x) end,
+      fun(M, F, A) -> dbg:ctpl(M, F, A) end,
+      [{tls_server_session_ticket,
+        [{handle_call,3}, {handle_cast,2}, {handle_info,2},
+         {terminate,2}, {start_link,7},
+         {init,1}, {initial_state,1}, {validate_binder,5}, {stateful_store,0},
+         {stateful_ticket_store,5}, {stateful_use,4}, {stateful_use,6},
+         {stateful_usable_ticket,5}, {stateful_living_ticket,2},
+         {stateful_psk_ticket_id,1}, {generate_stateless_ticket,4}, {stateless_use,6},
+         {stateless_usable_ticket,5}, {stateless_living_ticket,5}, {in_window,2},
+         {stateless_anti_replay,4}]},
+       {tls_handshake_1_3,
+        [{get_ticket_data,3}]}
+      ]}].
