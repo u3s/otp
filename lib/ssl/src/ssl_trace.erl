@@ -399,7 +399,8 @@ trace_profiles() ->
       fun(M, F, A) -> dbg:ctpl(M, F, A) end,
       [{ssl, [{listen,2}, {connect,3}]},
        {ssl_gen_statem, [{init, 1}]},
-       {tls_server_session_ticket, [{init,1}]}]},
+       {tls_server_session_ticket, [{init,1}]},
+       {tls_sender, [{init, 3}]}]},
      {ssn, %% session
       fun(M, F, A) -> dbg:tpl(M, F, A, x) end,
       fun(M, F, A) -> dbg:ctpl(M, F, A) end,

@@ -149,13 +149,16 @@ tc_api_profile(Config) ->
                {"    (client) <- ssl_gen_statem:connect/8 returned",
                 ssl_gen_statem, connect},
                {"    (client) <- ssl:connect/3 returned", ssl, connect},
-               {"    (server) <- ssl:handshake/2 returned", ssl, handshake}
-              ],
+               {"    (server) <- ssl:handshake/2 returned", ssl, handshake},
+               {"    (client) <- tls_sender:init/3 returned", tls_sender, init},
+               {"    (server) <- tls_sender:init/3 returned", tls_sender, init}],
           processed =>
               ["rle ('?') -> ssl_gen_statem:init/1 (*client)",
                "rle ('?') -> ssl_gen_statem:init/1 (*server)",
                "rle ('?') -> ssl:listen/2 (*server) Args",
-               "rle ('?') -> ssl:connect/3 (*client) Args"]},
+               "rle ('?') -> ssl:connect/3 (*client) Args",
+               "rle ('?') -> tls_sender:init/3 (*server)",
+               "rle ('?') -> tls_sender:init/3 (*client)"]},
     TracesAfterDisconnect =
         #{
           call =>
@@ -214,12 +217,16 @@ tc_rle_profile(Config) ->
               [],
          return_from =>
               [{"    (client) <- ssl:connect/3 returned", ssl, connect},
-               {"    (server) <- ssl:listen/2 returned", ssl, listen}],
+               {"    (server) <- ssl:listen/2 returned", ssl, listen},
+               {"    (client) <- tls_sender:init/3 returned", tls_sender, init},
+               {"    (server) <- tls_sender:init/3 returned", tls_sender, init}],
           processed =>
               ["rle ('?') -> ssl:listen/2 (*server) Args =",
                "rle ('?') -> ssl:connect/3 (*client) Args",
                "rle ('?') -> ssl_gen_statem:init/1 (*server) Args = [[server",
-               "rle ('?') -> ssl_gen_statem:init/1 (*client) Args = [[client"]},
+               "rle ('?') -> ssl_gen_statem:init/1 (*client) Args = [[client",
+               "rle ('?') -> tls_sender:init/3 (*server)",
+               "rle ('?') -> tls_sender:init/3 (*client)"]},
     Ref = ssl_trace_start(),
     {ok, On} = ssl_trace:on(On),
     [Server, Client] = ssl_connect(Config),
