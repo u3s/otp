@@ -276,7 +276,7 @@ tc_file_option(Config) ->
     ssl_test_lib:close(Server),
     ssl_test_lib:close(Client),
     ActualTraceCnt = count_line("ssl_trace.txt"),
-    ExpectedTraceCnt = 10,
+    ExpectedTraceCnt = 11, %% budget + 1 message about end of budget
     ssl_trace:stop(),
     case ExpectedTraceCnt == ActualTraceCnt of
         true ->

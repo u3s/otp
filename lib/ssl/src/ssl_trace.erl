@@ -242,13 +242,13 @@ try_handle_trace(ProfilesOn, Arg, WriteFun0, HandlerAcc) ->
                               {skip, NewProcessStack} ->
                                   %% Don't try to process this later
                                   put_proc_stack(Pid, NewProcessStack),
-                                  reduce_budget(BAcc);
+                                  reduce_budget(BAcc, WriteFun);
                               {Txt, NewProcessStack} when is_list(Txt) ->
                                   put_proc_stack(Pid, NewProcessStack),
                                   write_txt(WriteFun, Timestamp, Pid,
                                             common_prefix(TraceInfo, Role,
                                                           Profile) ++ Txt),
-                                  reduce_budget(BAcc)
+                                  reduce_budget(BAcc, WriteFun)
                           catch
                               _:_ ->
                                   %% not processed by custom handler
@@ -268,15 +268,22 @@ try_handle_trace(ProfilesOn, Arg, WriteFun0, HandlerAcc) ->
                                          common_prefix(TraceInfo, Role,
                                                        "   ")]),
                           TraceInfo, 7], processed),
-                reduce_budget(Budget0);
+                reduce_budget(Budget0, WriteFun);
             _ ->
                 Budget1
         end,
     [{budget, Budget2} | proplists:delete(budget, HandlerAcc)].
 
-reduce_budget(B) when B>1 ->
+reduce_budget(B, _) when B > 1 ->
     B - 1;
-reduce_budget(_B) ->
+reduce_budget(_, WriteFun) ->
+    case get(no_budget_msg_written) of
+        undefined ->
+            WriteFun("No more trace budget!~n", [], processed),
+            put(no_budget_msg_written, true);
+        _ ->
+            ok
+    end,
     0.
 
 write_txt(WriteFun, Timestamp, Pid, Txt) when is_list(Txt) ->
