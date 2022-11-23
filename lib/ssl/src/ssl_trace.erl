@@ -50,7 +50,7 @@
 -module(ssl_trace).
 
 -export([start/0, start/1, start/2, stop/0, on/0,  on/1, off/0, off/1, is_on/0,
-         is_off/0]).
+         is_off/0, write/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 %% Internal apply_after:
 -export([ets_delete/2]).
@@ -64,7 +64,8 @@
 -record(state, {
                 file = undefined,
                 types_on = [],
-                io_device = undefined
+                io_device = undefined,
+                write_fun
                }).
 
 %%%----------------------------------------------------------------
@@ -78,7 +79,9 @@ start(IoFmtFun) when is_function(IoFmtFun,2) ; is_function(IoFmtFun,3) ->
 start(IoFmtFun, TraceOpts) when is_function(IoFmtFun,2);
                                 is_function(IoFmtFun,3);
                                 is_list(TraceOpts) ->
-    {ok, Pid} = gen_server:start({local,?SERVER}, ?MODULE, TraceOpts, []),
+    WriteFun = fun(F,A,S) -> IoFmtFun(F,A), S end,
+    {ok, Pid} = gen_server:start({local,?SERVER}, ?MODULE,
+                                 [{write_fun, WriteFun}, TraceOpts], []),
     true = is_process_alive(Pid),
     catch dbg:start(),
     start_tracer(IoFmtFun, TraceOpts),
@@ -112,15 +115,18 @@ is_on() ->
 is_off() ->
     get_all_trace_profiles() -- is_on().
 
+write(Fmt, Args) ->
+    gen_server:call(?SERVER, {write, Fmt, Args}, ?CALL_TIMEOUT).
+
 %%%----------------------------------------------------------------
-init(_) ->
+init(Args) ->
     try
         ets:new(?MODULE, [public, named_table])
     catch
         exit:badarg ->
             ok
     end,
-    {ok, #state{}}.
+    {ok, #state{write_fun = proplists:get_value(write_fun, Args)}}.
 
 handle_call({switch,on,Profiles}, _From, State) ->
     [enable_profile(P) || P <- Profiles],
@@ -143,6 +149,11 @@ handle_call(file_close, _From, #state{io_device = IODevice} = State) ->
             ok
     end,
     {reply, ok, State#state{io_device = undefined}};
+handle_call({write, Fmt, Args}, _From, State) ->
+    #state{io_device = IODevice, write_fun = WriteFun0} = State,
+    WriteFun = get_write_fun(IODevice, WriteFun0),
+    WriteFun(Fmt, Args, processed),
+    {reply, ok, State};
 handle_call(C, _From, State) ->
     io:format('*** Unknown call: ~p~n',[C]),
     {reply, {error,{unknown_call,C}}, State}.
@@ -214,16 +225,7 @@ start_dbg_tracer(WriteFun, InitHandlerAcc0) when is_function(WriteFun, 3) ->
 
 try_handle_trace(ProfilesOn, Arg, WriteFun0, HandlerAcc) ->
     IODevice = proplists:get_value(io_device, HandlerAcc),
-    WriteFun =
-        case is_pid(IODevice) of
-            true ->
-                fun(Format, Args, Return) ->
-                        ok = io:format(IODevice, Format, Args),
-                        Return
-                end;
-            false ->
-                WriteFun0
-        end,
+    WriteFun = get_write_fun(IODevice, WriteFun0),
     Budget0 = proplists:get_value(budget, HandlerAcc, 0),
     Timestamp = trace_ts(Arg),
     Pid = trace_pid(Arg),
@@ -273,6 +275,17 @@ try_handle_trace(ProfilesOn, Arg, WriteFun0, HandlerAcc) ->
                 Budget1
         end,
     [{budget, Budget2} | proplists:delete(budget, HandlerAcc)].
+
+get_write_fun(IODevice, WriteFun0) ->
+    case is_pid(IODevice) of
+        true ->
+            fun(Format, Args, Return) ->
+                    ok = io:format(IODevice, Format, Args),
+                    Return
+            end;
+        false ->
+            WriteFun0
+    end.
 
 reduce_budget(B, _) when B > 1 ->
     B - 1;

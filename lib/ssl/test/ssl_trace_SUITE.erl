@@ -44,7 +44,9 @@
          tc_budget_option/0,
          tc_budget_option/1,
          tc_file_option/0,
-         tc_file_option/1]).
+         tc_file_option/1,
+         tc_write/0,
+         tc_write/1]).
 
 %%--------------------------------------------------------------------
 %% Common Test interface functions -----------------------------------
@@ -53,7 +55,7 @@ suite() -> [{ct_hooks,[ts_install_cth]},
             {timetrap,{seconds,60}}].
 
 all() -> [tc_basic, tc_no_trace, tc_api_profile, tc_rle_profile,
-         tc_budget_option, tc_file_option].
+         tc_budget_option, tc_file_option, tc_write].
 
 init_per_suite(Config) ->
     catch crypto:stop(),
@@ -113,7 +115,6 @@ tc_basic(_Config) ->
 
 tc_no_trace() ->
     [{doc, "Verify there are no traces if not enabled"}].
-
 tc_no_trace(Config) ->
     Ref = ssl_trace_start(),
     [Server, Client] = ssl_connect(Config),
@@ -127,7 +128,6 @@ tc_no_trace(Config) ->
 
 tc_api_profile() ->
     [{doc, "Verify traces for 'api' trace profile"}].
-
 tc_api_profile(Config) ->
     On = [api, rle],
     Off = [],
@@ -208,7 +208,6 @@ tc_api_profile(Config) ->
 
 tc_rle_profile() ->
     [{doc, "Verify traces for 'rle' trace profile"}].
-
 tc_rle_profile(Config) ->
     On = [rle],
     ExpectedTraces =
@@ -241,10 +240,10 @@ tc_rle_profile(Config) ->
 
 tc_budget_option() ->
     [{doc, "Verify that budget option limits amount of traces"}].
-
 tc_budget_option(Config) ->
     Ref = ssl_trace_start(make_ref(), [{budget, 10}]),
     {ok, [api,rle]} = ssl_trace:on([api,rle]),
+    ssl_trace:write("Not a trace from dbg", []),
     [Server, Client] = ssl_connect(Config),
     ssl_test_lib:close(Server),
     ssl_test_lib:close(Client),
@@ -268,7 +267,6 @@ tc_budget_option(Config) ->
 
 tc_file_option() ->
     [{doc, "Verify that file option redirects traces to file"}].
-
 tc_file_option(Config) ->
     _Ref = ssl_trace_start(make_ref(), [{budget, 10}, file]),
     {ok, [api,rle]} = ssl_trace:on([api,rle]),
@@ -277,6 +275,23 @@ tc_file_option(Config) ->
     ssl_test_lib:close(Client),
     ActualTraceCnt = count_line("ssl_trace.txt"),
     ExpectedTraceCnt = 11, %% budget + 1 message about end of budget
+    ssl_trace:stop(),
+    case ExpectedTraceCnt == ActualTraceCnt of
+        true ->
+            ok;
+        _ ->
+            ?FAIL("Expected ~w traces, but found ~w",
+                  [ExpectedTraceCnt, ActualTraceCnt])
+    end.
+
+tc_write() ->
+    [{doc, "Verify that custom messages can be written"}].
+tc_write(_Config) ->
+    _Ref = ssl_trace_start(make_ref(), [{budget, 10}, file]),
+    {ok, [api,rle]} = ssl_trace:on([api,rle]),
+    ssl_trace:write("Custom trace message ~w", [msg]),
+    ActualTraceCnt = count_line("ssl_trace.txt"),
+    ExpectedTraceCnt = 1,
     ssl_trace:stop(),
     case ExpectedTraceCnt == ActualTraceCnt of
         true ->
