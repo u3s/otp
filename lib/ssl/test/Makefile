@@ -36,6 +36,7 @@ VSN=$(SSL_VSN)
 # ----------------------------------------------------
 
 MODULES = \
+	ssl_cth \
 	ssl_test_lib \
 	ssl_app_env_SUITE\
 	ssl_alert_SUITE\
