@@ -720,6 +720,22 @@ hibernate_after(StateName, State, Actions) ->
 %%%#
 %%%# Tracing
 %%%#
+handle_trace(kdt,
+             {call, {?MODULE, time_to_rekey,
+                     [_Version, Data, Map, _RenegotiateAt,
+                      KeyUpdateAt, BytesSent]}}, Stack) ->
+    #{current_write := #{sequence_number := Sn}} = Map,
+    DataSize = iolist_size(Data),
+    {io_lib:format("~w) (BytesSent:~w + DataSize:~w) > KeyUpdateAt:~w",
+                   [Sn, BytesSent, DataSize, KeyUpdateAt]), Stack};
+handle_trace(kdt,
+             {call, {?MODULE, send_post_handshake_data,
+                     [{key_update, update_requested}|_]}}, Stack) ->
+    {io_lib:format("KeyUpdate procedure 1/4 - update_requested sent", []), Stack};
+handle_trace(kdt,
+             {call, {?MODULE, send_post_handshake_data,
+                     [{key_update, update_not_requested}|_]}}, Stack) ->
+    {io_lib:format("KeyUpdate procedure 3/4 - update_not_requested sent", []), Stack};
 handle_trace(hbn,
              {call, {?MODULE, connection,
                      [timeout, hibernate | _]}}, Stack) ->
@@ -740,9 +756,10 @@ handle_trace(rle,
                  {call, {?MODULE, init, [Type, Opts, _StateData]}}, Stack0) ->
     {Pid, #{role := Role,
             socket := _Socket,
+            key_update_at := KeyUpdateAt,
             erl_dist := IsErlDist,
             trackers := Trackers,
             negotiated_version := _Version}} = Opts,
-    {io_lib:format("(*~w) Type = ~w Pid = ~w Trackers = ~w Dist = ~w",
-                   [Role, Type, Pid, Trackers, IsErlDist]),
+    {io_lib:format("(*~w) Type = ~w Pid = ~w Trackers = ~w Dist = ~w KeyUpdateAt = ~w",
+                   [Role, Type, Pid, Trackers, IsErlDist, KeyUpdateAt]),
      [{role, Role} | Stack0]}.
