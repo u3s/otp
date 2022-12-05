@@ -217,6 +217,8 @@
          verify_early_data/1,
          trace/0
         ]).
+%% Tracing
+-export([handle_trace/3]).
 
 -record(sslsocket, { fd = nil, pid = nil}).
 -define(SLEEP, 1000).
@@ -860,34 +862,34 @@ openssl_server_loop(Pid, SslPort, Args) ->
         {data, Data} ->
             case port_command(SslPort, Data, [nosuspend]) of
                 true ->
-                    ?LOG("[openssl server] Send data: ~p~n", [Data]),
+                    ?PAL("[openssl server] Send data: ~p~n", [Data]),
                     Pid ! {self(), ok};
                 _Else ->
-                    ?LOG("[openssl server] Send failed, data: ~p~n", [Data]),
+                    ?PAL("[openssl server] Send failed, data: ~p~n", [Data]),
                     Pid ! {self(), {error, port_command_failed}}
             end,
             openssl_server_loop(Pid, SslPort, Args);
         {active_receive, Data} ->
             case active_recv(SslPort, length(Data)) of
                 ReceivedData ->
-                    ?LOG("[openssl server] Received: ~p~n", [Data]),
+                    ?PAL("[openssl server] Received: ~p~n", [Data]),
                     Pid ! {self(), ReceivedData}
             end,
             openssl_server_loop(Pid, SslPort, Args);
         {update_keys, Type} ->
             case Type of
                 write ->
-                    ?LOG("[openssl server] Update keys: ~p", [Type]),
+                    ?PAL("[openssl server] Update keys: ~p", [Type]),
                     true = port_command(SslPort, "k", [nosuspend]),
                     Pid ! {self(), ok};
                 read_write ->
-                    ?LOG("[openssl server] Update keys: ~p", [Type]),
+                    ?PAL("[openssl server] Update keys: ~p", [Type]),
                     true = port_command(SslPort, "K", [nosuspend]),
                     Pid ! {self(), ok}
             end,
             openssl_server_loop(Pid, SslPort, Args);
         close ->
-            ?LOG("~n[openssl server] Server closing~n", []),
+            ?PAL("~n[openssl server] Server closing~n", []),
             catch port_close(SslPort);
         {ssl_closed, _Socket} ->
             %% TODO
@@ -4133,4 +4135,11 @@ curve_default(_) ->
 
 trace() ->
     ssl_trace:start(fun ct:pal/2, []),
-    ssl_trace:on().
+    ssl_trace:on([rle, crt, csp]).
+
+handle_trace(rle,
+                 {call, {?MODULE, init_openssl_server, [Mode, ResponderPort | _]}}, Stack0) ->
+    Role = server,
+    {io_lib:format("(*~w) Mode = ~w ResponderPort = ~w",
+                   [Role, Mode, ResponderPort]),
+     [{role, Role} | Stack0]}.

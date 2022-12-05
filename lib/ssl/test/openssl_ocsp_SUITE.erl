@@ -112,11 +112,13 @@ end_per_group(GroupName, Config) ->
 
 %%--------------------------------------------------------------------
 init_per_testcase(_TestCase, Config) ->
+    ssl_test_lib:trace(),
     ct:timetrap({seconds, 10}),
     ssl_test_lib:ct_log_supported_protocol_versions(Config),
     Config.
 
 end_per_testcase(_TestCase, Config) ->
+    ssl_trace:stop(),
     Config.
 
 %%--------------------------------------------------------------------
@@ -160,12 +162,18 @@ ocsp_stapling_helper(Config, Opts) ->
                                            {cacertfile, CACertsFile},
                                            {server_name_indication, disable},
                                            {ocsp_stapling, true}] ++ Opts, Config),
+    ct:sleep(500),
+    ssl_trace:write("#### start client", []),
     Client = ssl_test_lib:start_client(erlang,
                                        [{port, Port},
                                         {options, ClientOpts}], Config),
     true = is_pid(Client),
+    ct:sleep(500),
+    ssl_trace:write("#### client connected, sending data", []),
     ssl_test_lib:send(Server, Data),
     Data = ssl_test_lib:check_active_receive(Client, Data),
+    ct:sleep(500),
+    ssl_trace:write("#### data sent and checked, closing connection", []),
     ssl_test_lib:close(Server),
     ssl_test_lib:close(Client).
 %%--------------------------------------------------------------------

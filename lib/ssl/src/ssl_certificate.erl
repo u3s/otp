@@ -85,6 +85,9 @@
          available_cert_key_pairs/2
 	]).
 
+%% Tracing
+-export([handle_trace/3]).
+
 %%====================================================================
 %% Internal application API
 %%====================================================================
@@ -825,3 +828,11 @@ cert_issuers(OTPCerts) ->
 cert_auth_member(ChainSubjects, CertAuths) ->
     CommonAuthorities = sets:intersection(sets:from_list(ChainSubjects), sets:from_list(CertAuths)),
     not sets:is_empty(CommonAuthorities).
+
+%%%################################################################
+%%%#
+%%%# Tracing
+%%%#
+handle_trace(crt,
+             {call, {?MODULE, validate, [Cert | _]}}, Stack) ->
+    {ssl_test_lib:format_cert(Cert), Stack}.
