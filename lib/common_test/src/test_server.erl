@@ -1219,13 +1219,15 @@ run_test_case_eval(Mod, Func, Args0, Name, Ref, RunInit,
     put(test_server_logopts, LogOpts),
     Where = [{Mod,Func}],
     put(test_server_loc, Where),
-
     FWInitFunc = case RunInit of
 		     run_init -> {init_per_testcase,Func};
 		     _        -> Func
 		 end,
-
+    Before = erlang:monotonic_time(),
     FWInitResult0 = do_init_tc_call(Mod,FWInitFunc,Args0,{ok,Args0}),
+    After = erlang:monotonic_time(),
+    PreHookTime = get_diff_micro(After, Before),
+    put(pre_hook_time, PreHookTime),
 
     set_tc_state(running),
     {{Time,Value},Loc,Opts} =
@@ -1435,30 +1437,41 @@ do_end_tc_call(Mod, Func, Res, Return) ->
 do_end_tc_call1(Mod, Func, Res, Return) ->
     FwMod = os:getenv("TEST_SERVER_FRAMEWORK"),
     Ref = make_ref(),
-    if FwMod == "ct_framework" ; FwMod == "undefined"; FwMod == false ->
-	    case test_server_sup:framework_call(
-		   end_tc, [Mod,Func,Res, Return], ok) of
-		{fail,FWReason} ->
-		    {failed,FWReason};
-		ok ->
-		    case Return of
-			{fail,Reason} ->
-			    {failed,Reason};
-			Return ->
-			    Return
-		    end;
-		NewReturn ->
-		    NewReturn
-	    end;
-       true ->
-	    case test_server_sup:framework_call(FwMod, end_tc,
-						[Mod,Func,Res], Ref) of
-		{fail,FWReason} ->
-		    {failed,FWReason};
-		_Else ->
-		    Return
-	    end
-    end.
+    Before = erlang:monotonic_time(),
+    Return =
+        if FwMod == "ct_framework" ; FwMod == "undefined"; FwMod == false ->
+                case test_server_sup:framework_call(
+                       end_tc, [Mod,Func,Res, Return], ok) of
+                    {fail,FWReason} ->
+                        {failed,FWReason};
+                    ok ->
+                        case Return of
+                            {fail,Reason} ->
+                                {failed,Reason};
+                            Return ->
+                                Return
+                        end;
+                    NewReturn ->
+                        NewReturn
+                end;
+           true ->
+                case test_server_sup:framework_call(FwMod, end_tc,
+                                                    [Mod,Func,Res], Ref) of
+                    {fail,FWReason} ->
+                        {failed,FWReason};
+                    _Else ->
+                        Return
+                end
+        end,
+    After = erlang:monotonic_time(),
+    HookTime = get_diff_micro(After, Before) +
+        case get(pre_hook_time) of
+            undefined -> 0;
+            PreHookTime -> PreHookTime
+        end,
+    test_server_ctrl:print(major, "=hook_time     ~.3fs", [HookTime/1000000]),
+    put(pre_hook_time, undefined),
+    Return.
 
 %% the return value is a list and we have to check if it contains
 %% the result of an end conf case or if it's a Config list
@@ -3191,3 +3204,5 @@ start_cover() ->
            Else
    end.
 
+get_diff_micro(A, B) ->
+    erlang:convert_time_unit(A-B, native, micro_seconds).
