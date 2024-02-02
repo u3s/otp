@@ -194,8 +194,10 @@ init_per_suite(Config) ->
           ServerConfFile, Server, ServerConf, ClientConf,
           CertOptions, RootCert),
         %%
-        Schedulers =
-            erpc:call(ServerNode, erlang, system_info, [schedulers]),
+        ClientNumber =
+            erlang:min(16,
+                       erpc:call(ServerNode, erlang, system_info, [schedulers])),
+        ?CT_PAL("{clients, ClientNumber = ~p}", [ClientNumber]),
         [_, ClientHost] = split_node(Node),
         [{server_node, ServerNode},
          {server_name, ServerName},
@@ -203,9 +205,9 @@ init_per_suite(Config) ->
          {server_dist_args,
           "-proto_dist inet_tls "
           "-ssl_dist_optfile " ++ ServerConfFile ++ " "},
-         {clients, Schedulers} |
+         {clients, ClientNumber} |
          init_client_node(
-           ClientHost, Schedulers, PrivDir, ServerConf, ClientConf,
+           ClientHost, ClientNumber, PrivDir, ServerConf, ClientConf,
            CertOptions, RootCert, Config)]
     catch
         throw : {Skip, Reason} ->
@@ -525,9 +527,13 @@ set_cpu_affinity(Index) when is_integer(Index) ->
             {"", undefined, undefined};
         CpuTopology ->
             Log = taskset(element(Index, split_cpus(CpuTopology))),
-            %% Update Schedulers
+            %% Update ClientNumber
             _ = erlang:system_info(update_cpu_info),
-            Schedulers = erlang:system_info(schedulers_online),
+            Schedulers =
+                erlang:min(16,
+                           erlang:min(erlang:system_info(logical_processors_available),
+                                      floor(erlang:system_info(schedulers_online)/2) + 1)),
+            ?CT_PAL("CpuTopology = ~p Schedulers = ~p", [CpuTopology, Schedulers]),
             {Log,
              erlang:system_flag(schedulers_online, Schedulers),
              Schedulers}
@@ -560,7 +566,18 @@ logical_processors([]) ->
 %% Parallel setup
 
 parallel_setup(Config) ->
-    Clients = proplists:get_value(clients, Config),
+    Clients0 = proplists:get_value(clients, Config),
+
+    GroupPath = lists:flatten(proplists:get_value(tc_group_path, Config)),
+    ?CT_PAL("GroupPath = ~p", [GroupPath]),
+    KTLS = lists:keyfind(ktls, 2, GroupPath),
+    ?CT_PAL("KTLS = ~p", [KTLS]),
+    Clients = case KTLS of
+                  true ->
+                      1; % more Clients cause failure - in other words KTLS does not work with parallel_setup
+                  _ ->
+                      Clients0
+              end,
     parallel_setup(Config, Clients, Clients, []).
 
 parallel_setup(Config, Clients, I, HNs) when 0 < I ->
