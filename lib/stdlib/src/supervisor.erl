@@ -1516,11 +1516,38 @@ shutdown(#child{pid=Pid, shutdown=Time} = Child) ->
                     normal when not (?is_permanent(Child)) ->
                         ok;
                     Reason ->
+                        %% killed is expected to become an error as
+                        %% this function clause tries to terminate
+                        %% process not brutally
                         {error, Reason}
                 end
         end
     end.
 
+unlink_flush(Pid, NotExitReason) when NotExitReason == noproc ->
+                                % ? check only for noproc?
+                                % noconnection should remain an error
+                                %% NotExitReason == noconnection ->
+    %% If race between orderly shutdown from supervisor termination
+    %% and worker termination occurs make sure to report
+    %% correct error reason if possible
+    {links, Links} = process_info(self(), links),
+    case lists:member(Pid, Links) of
+        true ->
+            receive
+                {'EXIT', Pid, Reason} ->
+                    Reason
+            end;
+        false ->
+            %% naughty child - unlinked itself from supervisor
+            %% we need after section to handle such child
+            receive
+                {'EXIT', Pid, Reason} ->
+                    Reason
+            after 0 ->
+                    NotExitReason
+            end
+    end;
 unlink_flush(Pid, DefaultReason) ->
     %% We call unlink in order to guarantee that the 'EXIT' has arrived
     %% from the dead process. See the unlink docs for details.
