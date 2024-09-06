@@ -251,6 +251,8 @@ format_reason(saved) ->
     "";
 format_reason(Reason) when is_list(Reason) ->
     io_lib:format("Reason: ~p", [lists:flatten(Reason)]);
+format_reason(Reason) when is_atom(Reason) ->
+    io_lib:format("Reason: ~p", [Reason]);
 format_reason({Reason, SubReason}) ->
     io_lib:format("Reason: ~p (~p)", [Reason, SubReason]);
 format_reason({Reason, A, B, C}) ->
