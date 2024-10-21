@@ -1867,6 +1867,8 @@ config_file_modify_algorithms_order(Config) ->
     
 %%--------------------------------------------------------------------
 daemon_replace_options_simple(Config) ->
+    ssh_dbg:start(fun(Fmt, Args) -> io:fwrite(user, Fmt, Args) end),
+    ssh_dbg:on(connections),
     SysDir = proplists:get_value(data_dir, Config),
 
     UserDir1 = proplists:get_value(user_dir, Config),

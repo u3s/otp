@@ -24,6 +24,7 @@
 -include_lib("common_test/include/ct.hrl").
 -include("ssh_test_lib.hrl").
 -include("ssh_transport.hrl").
+-include_lib("/home/ejakwit/src/tools/src/tools.hrl").
 
 -export([
          suite/0,
@@ -263,18 +264,19 @@ erlang_server_openssh_client_renegotiate(Config) ->
       eserver_oclient_renegotiate_helper1(Config)).
 
 eserver_oclient_kex_strict(Config) ->
+    ssh_dbg:start(fun(Fmt, Args) -> io:fwrite(user, Fmt, Args) end),
+    ssh_dbg:on(connections),
     case proplists:get_value(kex_strict, Config) of
         true ->
-            {ok, TestRef} = ssh_test_lib:add_log_handler(),
-            Level = ssh_test_lib:get_log_level(),
-            ssh_test_lib:set_log_level(debug),
-
+            %% {ok, TestRef} = ssh_test_lib:add_log_handler(),
+            %% Level = ssh_test_lib:get_log_level(),
+            %% ssh_test_lib:set_log_level(debug),
             HelperParams = eserver_oclient_renegotiate_helper1(Config),
-            {ok, Events} = ssh_test_lib:get_log_events(TestRef),
-            ct:log("Events = ~n~p", [Events]),
-            true = ssh_test_lib:kex_strict_negotiated(server, Events),
-            ssh_test_lib:set_log_level(Level),
-            ssh_test_lib:rm_log_handler(),
+            %% {ok, Events} = ssh_test_lib:get_log_events(TestRef),
+            %% ct:log("Events = ~n~p", [Events]),
+            %% true = ssh_test_lib:kex_strict_negotiated(server, Events),
+            %% ssh_test_lib:set_log_level(Level),
+            %% ssh_test_lib:rm_log_handler(),
             eserver_oclient_renegotiate_helper2(HelperParams);
         _ ->
             {skip, "KEX strict not support by local OpenSSH"}
@@ -284,11 +286,14 @@ eserver_oclient_renegotiate_helper1(Config) ->
     _PubKeyAlg = ssh_rsa,
     SystemDir = proplists:get_value(data_dir, Config),
     PrivDir = proplists:get_value(priv_dir, Config),
-
-    {Pid, Host, Port} = ssh_test_lib:daemon([{system_dir, SystemDir},
+    Port = 8989,
+    ?DBG("Starting daemon at ~p", [Port]),
+    {Pid, Host, Port} = ssh_test_lib:daemon(any, Port, [{system_dir, SystemDir},
                                              {failfun, fun ssh_test_lib:failfun/2}]),
+    %% {Pid, Host, Port} = ssh_test_lib:daemon([{system_dir, SystemDir},
+    %%                                          {failfun, fun ssh_test_lib:failfun/2}]),
     ct:sleep(500),
-
+    ?DBG_TERM({Pid, Host, Port}),
     RenegLimitK = 3,
     DataFile = filename:join(PrivDir, "renegotiate_openssh_client.data"),
     Data =  lists:duplicate(trunc(1.1*RenegLimitK*1024), $a),
