@@ -24,6 +24,7 @@
 -moduledoc false.
 
 -include("ssh.hrl").
+-include_lib("/home/ejakwit/src/tools/src/tools.hrl").
 
 %% Internal application API
 -export([start_link/3,
@@ -57,7 +58,7 @@ close(Socket, Options) ->
 %%--------------------------------------------------------------------
 %%% Internal functions
 %%--------------------------------------------------------------------
-acceptor_init(Parent, SystemSup,
+acceptor_init(AcceptorSup, SystemSup,
               #address{address=Address, port=Port, profile=_Profile},
               Opts) ->
     ssh_lib:set_label(server,
@@ -66,18 +67,21 @@ acceptor_init(Parent, SystemSup,
     AcceptTimeout = ?GET_INTERNAL_OPT(timeout, Opts, ?DEFAULT_TIMEOUT),
     {LSock, _LHost, _LPort, _SockOwner} =
         ?GET_INTERNAL_OPT(lsocket, Opts, undefined),
-    proc_lib:init_ack(Parent, {ok, self()}),
-    acceptor_loop(Port, Address, Opts, LSock, AcceptTimeout, SystemSup).
+    proc_lib:init_ack(AcceptorSup, {ok, self()}),
+    acceptor_loop(Port, Address, Opts, LSock, AcceptTimeout,
+                  {SystemSup, AcceptorSup}).
 
 %%%----------------------------------------------------------------
-acceptor_loop(Port, Address, Opts, ListenSocket, AcceptTimeout, SystemSup) ->
+acceptor_loop(Port, Address, Opts, ListenSocket, AcceptTimeout, Sups) ->
+    ?DBG_TERM(?GET_OPT(parallel_login, Opts)),
     try
         case accept(ListenSocket, AcceptTimeout, Opts) of
             {ok,Socket} ->
                 PeerName = inet:peername(Socket),
-                MaxSessions = ?GET_OPT(max_sessions, Opts),
-                NumSessions = number_of_connections(SystemSup),
                 ParallelLogin = ?GET_OPT(parallel_login, Opts),
+                MaxSessions = ?GET_OPT(max_sessions, Opts),
+                {NumSessions, AcceptorCnt} = number_of_connections(Sups),
+                ok = maybe_add_acceptor(ParallelLogin, AcceptorCnt),
                 case handle_connection(Address, Port, PeerName, Opts, Socket,
                                        MaxSessions, NumSessions, ParallelLogin) of
                     {error,Error} ->
@@ -91,9 +95,10 @@ acceptor_loop(Port, Address, Opts, ListenSocket, AcceptTimeout, SystemSup) ->
         end
     catch
         Class:Err:Stack ->
-            handle_error({error, {unhandled,Class,Err,Stack}}, Address, Port, undefined)
+            handle_error({error, {unhandled,Class,Err,Stack}}, Address, Port,
+                         undefined)
     end,
-    ?MODULE:acceptor_loop(Port, Address, Opts, ListenSocket, AcceptTimeout, SystemSup).
+    ?MODULE:acceptor_loop(Port, Address, Opts, ListenSocket, AcceptTimeout, Sups).
 
 %%%----------------------------------------------------------------
 handle_connection(_Address, _Port, _Peer, _Options, _Socket,
@@ -107,6 +112,7 @@ handle_connection(Address, Port, _Peer, Options, Socket,
                   _MaxSessions, _NumSessions, ParallelLogin)
   when ParallelLogin == false ->
     handle_connection(Address, Port, Options, Socket);
+%% FIXME clause below is to be deleted, replaced with maybe_add_acceptor/2 functionality
 handle_connection(Address, Port, _Peer, Options, Socket,
                   _MaxSessions, _NumSessions, ParallelLogin)
   when ParallelLogin == true ->
@@ -182,17 +188,38 @@ handle_error(Reason, ToAddress, ToPort, FromAddress, FromPort) ->
                                       io_lib:format(": ~p", [Error])])
     end.
 
+%% FIXME add testcase for integer ParallelLogin
+maybe_add_acceptor(ParallelLogin, AcceptorCnt)
+  when is_integer(ParallelLogin), AcceptorCnt < ParallelLogin->
+    %% FIXME add permanent acceptor to the pool
+    %% FIXME should they be permanent or should an integer budget should be specfied?
+    ok;
+maybe_add_acceptor(true, _) ->
+    %% FIXME add volatile acceptor to the pool
+    %% FIXME discuss - should we have a limit here as in SSH? MaxStartups
+    ok;
+maybe_add_acceptor(_, _) ->
+    ok.
+
+-define(SEARCH_FUN(Sup, Type, Module),
+        fun() ->
+                lists:foldl(
+                  fun({_Ref, _Pid, Type, [Module]}, N) -> N+1;
+                     (_, N) -> N
+                  end, 0, supervisor:which_children(Sup))
+        end()).
 %%%----------------------------------------------------------------
-number_of_connections(SysSupPid) ->
-    lists:foldl(fun({_Ref,_Pid,supervisor,[ssh_connection_sup]}, N) -> N+1;
-                   (_, N) -> N
-                end, 0, supervisor:which_children(SysSupPid)).
+number_of_connections({SysSupPid, AcceptorSupPid}) ->
+    NumSessions = ?SEARCH_FUN(SysSupPid, supervisor, ssh_connection_sup),
+    AcceptorCnt = ?SEARCH_FUN(AcceptorSupPid, worker, ssh_acceptor),
+    %% ?DBG_TERM(supervisor:which_children(AcceptorSupPid)),
+    ?DBG_TERM({NumSessions, AcceptorCnt}),
+    {NumSessions, AcceptorCnt}.
 
 %%%################################################################
 %%%#
 %%%# Tracing
 %%%#
-
 ssh_dbg_trace_points() -> [connections, tcp].
 
 ssh_dbg_flags(tcp) -> [c];
@@ -202,7 +229,8 @@ ssh_dbg_on(tcp) -> dbg:tpl(?MODULE, accept, 3, x),
                    dbg:tpl(?MODULE, close, 2, x);
 
 ssh_dbg_on(connections) -> dbg:tp(?MODULE,  acceptor_init, 4, x),
-                           dbg:tpl(?MODULE, handle_connection, 4, x).
+                           dbg:tpl(?MODULE, handle_connection, 4, x),
+                           dbg:tpl(?MODULE, maybe_add_acceptor, 2, x).
 
 ssh_dbg_off(tcp) -> dbg:ctpl(?MODULE, accept, 3),
                     dbg:ctpl(?MODULE, close, 2);
@@ -229,6 +257,8 @@ ssh_dbg_format(tcp, {return_from, {?MODULE,close,2}, _Return}) ->
     skip;
 ssh_dbg_format(connections, {return_from, {?MODULE,acceptor_init,4}, _Ret}) ->
     skip;
+ssh_dbg_format(connections, {return_from, {?MODULE,maybe_add_acceptor,2}, _Ret}) ->
+    skip;
 ssh_dbg_format(connections, {call, {?MODULE,handle_connection,[_Address,_Port,_Options,_Sock]}}) ->
     skip;
 ssh_dbg_format(Tracepoint, Event = {call, {?MODULE, Function, Args}}) ->
@@ -236,11 +266,18 @@ ssh_dbg_format(Tracepoint, Event = {call, {?MODULE, Function, Args}}) ->
                        ssh_dbg_comment(Tracepoint, Event))];
 ssh_dbg_format(Tracepoint, Event = {return_from, {?MODULE,Function,Arity}, Ret}) ->
     [io_lib:format("~w:~w/~w returned ~W> ~s", [?MODULE, Function, Arity, Ret, 2] ++
-                  ssh_dbg_comment(Tracepoint, Event))].
+                       ssh_dbg_comment(Tracepoint, Event))].
 
-ssh_dbg_comment(tcp, {call, {?MODULE,close, [Socket, _Options]}}) ->
+ssh_dbg_comment(tcp, {call, {?MODULE, close, [Socket, _Options]}}) ->
     [io_lib:format("TCP close listen socket Socket: ~p~n", [Socket])];
-ssh_dbg_comment(connections, {call, {?MODULE,acceptor_init, [_Parent, _SysSup, Address, _Opts]}}) ->
+ssh_dbg_comment(connections, {call, {?MODULE, maybe_add_acceptor, [true, AcceptorCnt]}}) ->
+    [io_lib:format("(parallel_login=true) AcceptorCnt = ~p, acceptor added", [AcceptorCnt])];
+ssh_dbg_comment(connections, {call, {?MODULE, maybe_add_acceptor, [ParallelLogin, AcceptorCnt]}})
+  when is_integer(ParallelLogin), AcceptorCnt < ParallelLogin ->
+    [io_lib:format("(parallel_login=~p) AcceptorCnt = ~p, acceptor added", [ParallelLogin, AcceptorCnt])];
+ssh_dbg_comment(connections, {call, {?MODULE, maybe_add_acceptor, [ParallelLogin, AcceptorCnt]}}) ->
+    [io_lib:format("(parallel_login=~p) AcceptorCnt = ~p", [ParallelLogin, AcceptorCnt])];
+ssh_dbg_comment(connections, {call, {?MODULE, acceptor_init, [_AcceptorSup, _SysSup, Address, _Opts]}}) ->
     [io_lib:format("Starting LISTENER on ~s", [ssh_lib:format_address(Address)])];
-ssh_dbg_comment(connections, {return_from, {?MODULE,handle_connection,4}, {error,Error}}) ->
+ssh_dbg_comment(connections, {return_from, {?MODULE, handle_connection, 4}, {error, Error}}) ->
     [io_lib:format("Starting connection to server failed: Error = ~p", [Error])].
