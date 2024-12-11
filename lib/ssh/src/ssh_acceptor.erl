@@ -27,11 +27,11 @@
 -include_lib("/home/ejakwit/src/tools/src/tools.hrl").
 
 %% Internal application API
--export([start_link/3,
+-export([start_link/4,
 	 number_of_connections/1]).
 
 %% spawn export
--export([acceptor_init/4, acceptor_loop/6]).
+-export([acceptor_init/4, acceptor_loop/7]).
 
 -behaviour(ssh_dbg).
 -export([ssh_dbg_trace_points/0, ssh_dbg_flags/1, ssh_dbg_on/1, ssh_dbg_off/1,
@@ -43,9 +43,9 @@
 %% Internal application API
 %%====================================================================
 %% Supposed to be called in a child-spec of the ssh_acceptor_sup
-start_link(SystemSup, Address, Options) ->
+start_link(SystemSup, Address, Options0, Type) ->
+    Options = ?PUT_INTERNAL_OPT({accept_budget, accept_budget(Type)}, Options0),
     proc_lib:start_link(?MODULE, acceptor_init, [self(),SystemSup,Address,Options]).
-
 
 accept(ListenSocket, AcceptTimeout, Options) ->
     {_, Callback, _} = ?GET_OPT(transport, Options),
@@ -65,14 +65,18 @@ acceptor_init(AcceptorSup, SystemSup,
                       {acceptor,
                        list_to_binary(ssh_lib:format_address_port(Address, Port))}),
     AcceptTimeout = ?GET_INTERNAL_OPT(timeout, Opts, ?DEFAULT_TIMEOUT),
+    AcceptBudget = ?GET_INTERNAL_OPT(accept_budget, Opts, ?DEFAULT_TIMEOUT),
     {LSock, _LHost, _LPort, _SockOwner} =
         ?GET_INTERNAL_OPT(lsocket, Opts, undefined),
     proc_lib:init_ack(AcceptorSup, {ok, self()}),
-    acceptor_loop(Port, Address, Opts, LSock, AcceptTimeout,
+    acceptor_loop(Port, Address, Opts, LSock, AcceptTimeout, AcceptBudget,
                   {SystemSup, AcceptorSup}).
 
 %%%----------------------------------------------------------------
-acceptor_loop(Port, Address, Opts, ListenSocket, AcceptTimeout, Sups) ->
+acceptor_loop(_, _, _, _, _, _AcceptBudget = 0, _) ->
+    ok;
+acceptor_loop(Port, Address, Opts, ListenSocket, AcceptTimeout, AcceptBudget0,
+              Sups) ->
     ?DBG_TERM(?GET_OPT(parallel_login, Opts)),
     try
         case accept(ListenSocket, AcceptTimeout, Opts) of
@@ -98,7 +102,9 @@ acceptor_loop(Port, Address, Opts, ListenSocket, AcceptTimeout, Sups) ->
             handle_error({error, {unhandled,Class,Err,Stack}}, Address, Port,
                          undefined)
     end,
-    ?MODULE:acceptor_loop(Port, Address, Opts, ListenSocket, AcceptTimeout, Sups).
+    AcceptBudget = reduce_budget(AcceptBudget0),
+    ?MODULE:acceptor_loop(Port, Address, Opts, ListenSocket, AcceptTimeout, AcceptBudget,
+                          Sups).
 
 %%%----------------------------------------------------------------
 handle_connection(_Address, _Port, _Peer, _Options, _Socket,
@@ -142,13 +148,10 @@ handle_connection(Address, Port, Options0, Socket) ->
                                    Socket,
                                    Options).
 
-%%%----------------------------------------------------------------
 handle_error(Reason, ToAddress, ToPort, {ok, {FromIP,FromPort}}) ->
     handle_error(Reason, ToAddress, ToPort, FromIP, FromPort);
-
 handle_error(Reason, ToAddress, ToPort, _) ->
     handle_error(Reason, ToAddress, ToPort, undefined, undefined).
-
 
 handle_error(Reason, ToAddress, ToPort, FromAddress, FromPort) ->
     case Reason of
@@ -188,12 +191,12 @@ handle_error(Reason, ToAddress, ToPort, FromAddress, FromPort) ->
                                       io_lib:format(": ~p", [Error])])
     end.
 
-%% FIXME add testcase for integer ParallelLogin
-maybe_add_acceptor(ParallelLogin, AcceptorCnt)
-  when is_integer(ParallelLogin), AcceptorCnt < ParallelLogin ->
-    %% FIXME add permanent acceptor to the pool
-    %% FIXME should they be permanent or should an integer budget should be specfied?
-    ok;
+%% FIXME ParallelLogin being an integer (also add testcases)
+%% maybe_add_acceptor(ParallelLogin, AcceptorCnt)
+%%   when is_integer(ParallelLogin), AcceptorCnt < ParallelLogin ->
+%%     %% FIXME add permanent acceptor to the pool
+%%     %% FIXME should they be permanent or should an integer budget should be specfied?
+%%     ok;
 maybe_add_acceptor(true, _) ->
     %% FIXME add volatile acceptor to the pool
     %% FIXME discuss - should we have a limit here as in SSH? MaxStartups
@@ -208,13 +211,24 @@ maybe_add_acceptor(_, _) ->
                      (_, N) -> N
                   end, 0, supervisor:which_children(Sup))
         end()).
-%%%----------------------------------------------------------------
+
 number_of_connections({SysSupPid, AcceptorSupPid}) ->
     NumSessions = ?SEARCH_FUN(SysSupPid, supervisor, ssh_connection_sup),
     AcceptorCnt = ?SEARCH_FUN(AcceptorSupPid, worker, ssh_acceptor),
     %% ?DBG_TERM(supervisor:which_children(AcceptorSupPid)),
     ?DBG_TERM({NumSessions, AcceptorCnt}),
     {NumSessions, AcceptorCnt}.
+
+accept_budget(permanent) ->
+    infinity;
+accept_budget(_) ->
+    ?DEFAULT_ACCEPT_BUDGET.
+
+reduce_budget(infinity) ->
+    infinity;
+reduce_budget(N) when is_integer(N), N > 0 ->
+    N - 1.
+
 
 %%%################################################################
 %%%#

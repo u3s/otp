@@ -37,6 +37,7 @@
 -define(DEFAULT_SHELL, {shell, start, []} ).
 
 -define(DEFAULT_TIMEOUT, 5000).
+-define(DEFAULT_ACCEPT_BUDGET, 1).
 
 -define(MAX_RND_PADDING_LEN, 15).
 

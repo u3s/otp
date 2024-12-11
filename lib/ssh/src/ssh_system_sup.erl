@@ -256,7 +256,7 @@ start_acceptor(SysPid, Address, Options) ->
             case supervisor:start_child(SysPid, AcceptorSupSpec) of
                 {ok, AcceptorSup} ->
                     ?DBG(),
-                    {ok, _} = supervisor:start_child(AcceptorSup, []),
+                    {ok, _} = supervisor:start_child(AcceptorSup, [permanent]),
                     {ok,SysPid}; % sic!
                 {error,Error} ->
                     {error,Error}
