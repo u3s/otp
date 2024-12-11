@@ -142,6 +142,7 @@ The directory could be changed with the option
 -include_lib("public_key/include/public_key.hrl").
 -include_lib("kernel/include/file.hrl").
 -include_lib("kernel/include/inet.hrl").
+-include_lib("/home/ejakwit/src/tools/src/tools.hrl").
 
 -export([start/0, start/1, stop/0,
 	 connect/2, connect/3, connect/4,
@@ -518,6 +519,7 @@ daemon(Port, UserOptions) when 0 =< Port,Port =< 65535 ->
     daemon(any, Port, UserOptions);
 
 daemon(Socket, UserOptions) ->
+    ?DBG(),
     case ssh_options:handle_options(server, UserOptions) of
         #{} = Options0 ->
             case valid_socket_to_use(Socket, ?GET_OPT(transport,Options0)) of
@@ -526,11 +528,13 @@ daemon(Socket, UserOptions) ->
                         %% throws error:Error if no usable hostkey is found
                         ssh_connection_handler:available_hkey_algorithms(server, Options0),
                         {ok, {SockHost,SockPort}} = inet:sockname(Socket),
+                        ?DBG_TERM({ok, {SockHost,SockPort}}),
                         Address = #address{address = SockHost,
                                            port = SockPort,
                                            profile = ?GET_OPT(profile,Options0)
                                           },
                         Options = ?PUT_INTERNAL_OPT({connected_socket, Socket}, Options0),
+                        ?DBG(),
                         case ssh_system_sup:start_connection(server, Address, Socket, Options) of
                             {ok,Pid} ->
                                 {ok,Pid};

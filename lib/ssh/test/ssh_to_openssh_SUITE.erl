@@ -289,7 +289,7 @@ eserver_oclient_renegotiate_helper1(Config) ->
     Port = 8989,
     ?DBG("Starting daemon at ~p", [Port]),
     {Pid, Host, Port} = ssh_test_lib:daemon(any, Port, [{system_dir, SystemDir},
-                                             {failfun, fun ssh_test_lib:failfun/2}]),
+                                                        {failfun, fun ssh_test_lib:failfun/2}]),
     %% {Pid, Host, Port} = ssh_test_lib:daemon([{system_dir, SystemDir},
     %%                                          {failfun, fun ssh_test_lib:failfun/2}]),
     ct:sleep(500),

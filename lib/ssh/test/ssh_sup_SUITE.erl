@@ -55,7 +55,7 @@
 -define(ACCEPTOR_SUP(Pid,Address),
         {{ssh_acceptor_sup,Address},Pid,supervisor,[ssh_acceptor_sup]}).
 -define(ACCEPTOR_WORKER(Pid,Address),
-        {{ssh_acceptor_sup,Address},Pid,worker,[ssh_acceptor]}).
+        {undefined,Pid,worker,[ssh_acceptor]}).
 
 %%--------------------------------------------------------------------
 %% Common Test interface functions -----------------------------------
@@ -488,22 +488,17 @@ acceptor_pid(DaemonPid) ->
     Parent = self(),
     Pid = spawn(fun() ->
                         Parent ! {self(), supsearch,
-                                  [{AccPid,ListenAddr,Port}
-
-                                   || ?SYSTEM_SUP(DPid,#address{address=ListenAddr,port=Port,profile=NS})
+                                  [{AccPid,ListenAddr,Port} ||
+                                      ?SYSTEM_SUP(DPid,
+                                                  #address{address=ListenAddr,
+                                                           port=Port,
+                                                           profile=_NS})
                                           <- supervisor:which_children(sshd_sup),
                                       DPid == DaemonPid,
-
                                       ?ACCEPTOR_SUP(AccSupPid,_)
                                           <- supervisor:which_children(DaemonPid),
-
-                                      ?ACCEPTOR_WORKER(AccPid, #address{address=L2,
-                                                                        port=P2,
-                                                                        profile=NS2})
-                                          <- supervisor:which_children(AccSupPid),
-                                      L2 == ListenAddr,
-                                      P2 == Port,
-                                      NS2 == NS]}
+                                      ?ACCEPTOR_WORKER(AccPid, _)
+                                          <- supervisor:which_children(AccSupPid)]}
                 end),
     receive {Pid, supsearch, L} -> {ok,L}
     after 2000 -> timeout

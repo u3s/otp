@@ -190,7 +190,7 @@ handle_error(Reason, ToAddress, ToPort, FromAddress, FromPort) ->
 
 %% FIXME add testcase for integer ParallelLogin
 maybe_add_acceptor(ParallelLogin, AcceptorCnt)
-  when is_integer(ParallelLogin), AcceptorCnt < ParallelLogin->
+  when is_integer(ParallelLogin), AcceptorCnt < ParallelLogin ->
     %% FIXME add permanent acceptor to the pool
     %% FIXME should they be permanent or should an integer budget should be specfied?
     ok;

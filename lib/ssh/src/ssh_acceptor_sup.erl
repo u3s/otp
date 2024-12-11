@@ -64,7 +64,7 @@ init([SystemSup, Address, Options]) ->
     {LSocket, _LHost, _LPort, ProviderPid} =
         ?GET_INTERNAL_OPT(lsocket, Options, undefined),
     request_ownership(LSocket, ProviderPid),
-    SupFlags = #{strategy  => one_for_one,
+    SupFlags = #{strategy  => simple_one_for_one,
                  intensity =>   10,
                  period    => 3600
                 },

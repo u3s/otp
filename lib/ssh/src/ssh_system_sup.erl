@@ -31,7 +31,7 @@
 -behaviour(supervisor).
 
 -include("ssh.hrl").
-
+-include_lib("/home/ejakwit/src/tools/src/tools.hrl").
 -export([start_link/3,
          stop_listener/1,
 	 stop_system/1,
@@ -56,17 +56,40 @@
 %%%=========================================================================
 
 start_system(Address0, Options) ->
+    ?DBG(),
     case find_system_sup(Address0) of
         {ok,{SysPid,Address}} ->
             start_acceptor(SysPid, Address, Options);
         {error,not_found} ->
-            supervisor:start_child(sshd_sup,
-                                   #{id       => {?MODULE,Address0},
-                                     start    => {?MODULE, start_link, [server, Address0, Options]},
-                                     restart  => temporary,
-                                     type     => supervisor
-                                    })
+            ?DBG(),
+            %% FIXME why start_acceptor is not called within path below?
+            maybe
+                {ok, SysPid} ?=
+                    supervisor:start_child(sshd_sup,
+                                           #{id       => {?MODULE,Address0},
+                                             start    => {?MODULE, start_link,
+                                                          [server, Address0, Options]},
+                                             restart  => temporary,
+                                             type     => supervisor
+                                            }),
+
+                ?DBG_TERM(SysPid),
+                ?DBG_TERM(lookup(ssh_acceptor_sup, SysPid)),
+                %% FIXME lookup below fails, as ssh_acceptor_sup is probably not started when ConnectionSocket is provided
+                case is_socket_server(Options) of
+                    false ->
+                        {_, AcceptorSup, _, _} = lookup(ssh_acceptor_sup, SysPid),
+                        ?DBG_TERM(AcceptorSup),
+                        {ok, _} = supervisor:start_child(AcceptorSup, []);
+                    _ ->
+                        ?DBG("THIS IS SOCKET SERVER, NO TCP ACCEPTANCE WANTED AROUND!"),
+                        ok
+                end,
+                {ok, SysPid}
+            end
     end.
+
+%% FIXME have start_system/3 internal function taking is_socket_server as argument?
 
 %%%----------------------------------------------------------------
 stop_system(SysSup) when is_pid(SysSup) ->
@@ -104,6 +127,7 @@ get_daemon_listen_address(SystemSup) ->
 start_connection(Role = client, _, Socket, Options) ->
     do_start_connection(Role, sup(client), false, Socket, Options);
 start_connection(Role = server, Address=#address{}, Socket, Options) ->
+    ?DBG(),
     case get_system_sup(Address, Options) of
         {ok, SysPid} ->
             do_start_connection(Role, SysPid, true, Socket, Options);
@@ -190,12 +214,14 @@ restart_acceptor(SysPid, Options0) ->
 %%%  Supervisor callback
 %%%=========================================================================
 init([Role, Address, Options]) ->
+    %% FIXME remove Role argument??
     ssh_lib:set_label(Role, system_sup),
     SupFlags = #{strategy      => one_for_one,
                  auto_shutdown => all_significant,
                  intensity =>    0,
                  period    => 3600
                 },
+    % FIXME move code below to start_system/2?x
     ChildSpecs =
         case {Role, is_socket_server(Options)} of
             {server, false} ->
@@ -245,6 +271,7 @@ get_system_sup(Address0, Options) ->
         {ok,{SysPid,_Address}} ->
             {ok,SysPid};
         {error,not_found} ->
+            ?DBG(),
             start_system(Address0, Options);
         {error,Error} ->
             {error,Error}
@@ -266,15 +293,21 @@ is_socket_server(Options) ->
     undefined =/= ?GET_INTERNAL_OPT(connected_socket,Options,undefined).
 
 start_acceptor(SysPid, Address, Options) ->
+    ?DBG(),
     case lookup(ssh_acceptor_sup, SysPid) of
         {_,_,supervisor,_} ->
             {error, eaddrinuse};
         false ->
-            ChildSpec = acceptor_sup_child_spec(SysPid, Address, Options),
-            case supervisor:start_child(SysPid, ChildSpec) of
-                {ok,_ChildPid} ->
+            %% FIXME why acceptor_sup startup is repeated (not re-used here?)
+            AcceptorSupSpec = acceptor_sup_child_spec(SysPid, Address, Options),
+            case supervisor:start_child(SysPid, AcceptorSupSpec) of
+                {ok, AcceptorSup} ->
+                    ?DBG(),
+                    {ok, _} = supervisor:start_child(AcceptorSup, []),
                     {ok,SysPid}; % sic!
-                {ok,_ChildPid,_Info} ->
+                {ok,_AcceptorSup,_Info} ->
+                    %% FIXME ? REMOVE
+                    ?DBG("WHEN DOES THIS HAPPEN???"),
                     {ok,SysPid}; % sic!
                 {error,Error} ->
                     {error,Error}

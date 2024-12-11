@@ -24,7 +24,7 @@
 -include("ssh_connect.hrl").
 -include("ssh_test_lib.hrl").
 -include_lib("common_test/include/ct.hrl").
-
+-include_lib("/home/ejakwit/src/tools/src/tools.hrl").
 -export([
          suite/0,
          all/0,
@@ -122,7 +122,7 @@
 %%     [{ct_hooks,[ts_install_cth]}].
 
 suite() ->
-    [{timetrap,{seconds,40}}].
+    [{timetrap,{seconds,10}}].
 
 all() ->
     [
@@ -1810,7 +1810,7 @@ no_sensitive_leak(Config) ->
     [true|_] =
         [exit(Pacc,kill) || {{ssh_system_sup,_},P1,supervisor,_} <- supervisor:which_children(sshd_sup),
                             {{ssh_acceptor_sup,_},P2,supervisor,_} <- supervisor:which_children(P1),
-                            {{ssh_acceptor_sup,_},Pacc,worker,_} <- supervisor:which_children(P2)],
+                            {undefined,Pacc,worker,[ssh_acceptor]} <- supervisor:which_children(P2)],
     
     %% Remove the test handler and reset the logger level:
     timer:sleep(500),
