@@ -54,34 +54,9 @@
 %%%=========================================================================
 %%% API
 %%%=========================================================================
-start_system(Address0, Options) ->
-    ?DBG(),
-    case find_system_sup(Address0) of
-        {ok,{SysPid,Address}} ->
-            start_acceptor(SysPid, Address, Options);
-        {error,not_found} ->
-            ?DBG(),
-            maybe
-                {ok, SysPid} ?=
-                    supervisor:start_child(sshd_sup,
-                                           #{id       => {?MODULE,Address0},
-                                             start    => {?MODULE, start_link, []},
-                                             restart  => temporary,
-                                             type     => supervisor
-                                            }),
-
-                ?DBG_TERM(SysPid),
-                case is_socket_server(Options) of
-                    false ->
-                        start_acceptor(SysPid, Address0, Options);
-                    _ ->
-                        ?DBG("THIS IS SOCKET SERVER, NO TCP ACCEPTANCE WANTED AROUND!"),
-                        {ok, SysPid}
-                end
-            end
-    end.
-
-%% FIXME have start_system/3 internal function taking is_socket_server as argument?
+start_system(Address, Options) ->
+    start_system(find_system_sup(Address),
+                 is_socket_server(Options), Address, Options).
 
 %%%----------------------------------------------------------------
 stop_system(SysSup) when is_pid(SysSup) ->
@@ -292,7 +267,29 @@ start_acceptor(SysPid, Address, Options) ->
             end
     end.
 
+-define(SSH_SYSTEM_SUP_SPEC(Address),
+        #{id       => {?MODULE, Address},
+          start    => {?MODULE, start_link, []},
+          restart  => temporary,
+          type     => supervisor
+         }).
 
+start_system(_System = {error, not_found}, _IsSocketServer = true,
+             Address, _Options) ->
+    supervisor:start_child(sshd_sup, ?SSH_SYSTEM_SUP_SPEC(Address));
+start_system(_System = {ok, _}, _IsSocketServer = true, _Address, _Options) ->
+    {error, eaddrinuse};
+start_system(_System = {ok, {SysPid, Address}}, _IsSocketServer = false,
+             Address, Options) ->
+    start_acceptor(SysPid, Address, Options);
+start_system(_System = {error, not_found}, _IsSocketServer = false,
+             Address, Options) ->
+    maybe
+        {ok, SysPid} ?=
+            supervisor:start_child(sshd_sup, ?SSH_SYSTEM_SUP_SPEC(Address)),
+        ?DBG_TERM(SysPid),
+        start_acceptor(SysPid, Address, Options)
+    end.
 
 refresh_lsocket(Options0) ->
     {_OldLSock, LHost, LPort, _SockOwner} =
