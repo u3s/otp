@@ -61,7 +61,6 @@ start_system(Address0, Options) ->
             start_acceptor(SysPid, Address, Options);
         {error,not_found} ->
             ?DBG(),
-            %% FIXME why start_acceptor is not called within path below?
             maybe
                 {ok, SysPid} ?=
                     supervisor:start_child(sshd_sup,
@@ -74,17 +73,11 @@ start_system(Address0, Options) ->
                 ?DBG_TERM(SysPid),
                 case is_socket_server(Options) of
                     false ->
-                        supervisor:start_child(SysPid,
-                                               acceptor_sup_child_spec(SysPid, Address0, Options)),
-                        ?DBG_TERM(lookup(ssh_acceptor_sup, SysPid)),
-                        {_, AcceptorSup, _, _} = lookup(ssh_acceptor_sup, SysPid),
-                        ?DBG_TERM(AcceptorSup),
-                        {ok, _} = supervisor:start_child(AcceptorSup, []);
+                        start_acceptor(SysPid, Address0, Options);
                     _ ->
                         ?DBG("THIS IS SOCKET SERVER, NO TCP ACCEPTANCE WANTED AROUND!"),
-                        ok
-                end,
-                {ok, SysPid}
+                        {ok, SysPid}
+                end
             end
     end.
 
