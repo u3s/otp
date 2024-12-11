@@ -1589,7 +1589,7 @@ max_sessions_drops_tcp_connects(Config) ->
     Host = ssh_test_lib:mangle_connect_address(Host0),
     ct:log("~p:~p ~p Listen ~p:~p for max ~p sessions. Mangled Host = ~p",
            [?MODULE,?LINE,Pid,Host0,Port,MaxSessions,Host]),
-    
+
     %% Log in UseSessions connections
     SSHconnect = fun(N) ->
                          R = ssh:connect(Host, Port, 
@@ -1613,13 +1613,12 @@ max_sessions_drops_tcp_connects(Config) ->
                     [?MODULE,?LINE, N, gen_tcp:connect(Host, Port, [])])
              || N <- lists:seq(UseSessions+1, MaxSessions)
             ],
-
+            %% [ssh_options_SUITE] FIXME - WHY no TCP rejects are seen below? this behaves the same as connects above
             ct:log("~p:~p Now try ~p gen_tcp:connect to be rejected", [?MODULE,?LINE,FloodSessions]),
             [ct:log("~p:~p ~p: gen_tcp:connect -> ~p", 
                     [?MODULE,?LINE, N, gen_tcp:connect(Host, Port, [])])
              || N <- lists:seq(MaxSessions+1, MaxSessions+1+FloodSessions)
             ],
-            
             ct:log("~p:~p try ~p ssh:connect", [?MODULE,?LINE, MaxSessions - UseSessions]),
             try_ssh_connect(MaxSessions - UseSessions, NegTimeOut, SSHconnect);
 

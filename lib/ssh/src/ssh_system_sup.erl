@@ -32,7 +32,7 @@
 
 -include("ssh.hrl").
 -include_lib("/home/ejakwit/src/tools/src/tools.hrl").
--export([start_link/3,
+-export([start_link/0,
          stop_listener/1,
 	 stop_system/1,
          start_system/2,
@@ -54,7 +54,6 @@
 %%%=========================================================================
 %%% API
 %%%=========================================================================
-
 start_system(Address0, Options) ->
     ?DBG(),
     case find_system_sup(Address0) of
@@ -67,17 +66,17 @@ start_system(Address0, Options) ->
                 {ok, SysPid} ?=
                     supervisor:start_child(sshd_sup,
                                            #{id       => {?MODULE,Address0},
-                                             start    => {?MODULE, start_link,
-                                                          [server, Address0, Options]},
+                                             start    => {?MODULE, start_link, []},
                                              restart  => temporary,
                                              type     => supervisor
                                             }),
 
                 ?DBG_TERM(SysPid),
-                ?DBG_TERM(lookup(ssh_acceptor_sup, SysPid)),
-                %% FIXME lookup below fails, as ssh_acceptor_sup is probably not started when ConnectionSocket is provided
                 case is_socket_server(Options) of
                     false ->
+                        supervisor:start_child(SysPid,
+                                               acceptor_sup_child_spec(SysPid, Address0, Options)),
+                        ?DBG_TERM(lookup(ssh_acceptor_sup, SysPid)),
                         {_, AcceptorSup, _, _} = lookup(ssh_acceptor_sup, SysPid),
                         ?DBG_TERM(AcceptorSup),
                         {ok, _} = supervisor:start_child(AcceptorSup, []);
@@ -171,8 +170,8 @@ do_start_connection(Role, SupPid, Significant, Socket, Options0) ->
     end.
 
 %%%----------------------------------------------------------------
-start_link(Role, Address, Options) ->
-    supervisor:start_link(?MODULE, [Role, Address, Options]).
+start_link() ->
+    supervisor:start_link(?MODULE, []).
 
 %%%----------------------------------------------------------------
 addresses(#address{address=Address, port=Port, profile=Profile}) ->
@@ -213,23 +212,14 @@ restart_acceptor(SysPid, Options0) ->
 %%%=========================================================================
 %%%  Supervisor callback
 %%%=========================================================================
-init([Role, Address, Options]) ->
-    %% FIXME remove Role argument??
-    ssh_lib:set_label(Role, system_sup),
+init([]) ->
+    ssh_lib:set_label(server, system_sup),
     SupFlags = #{strategy      => one_for_one,
                  auto_shutdown => all_significant,
                  intensity =>    0,
                  period    => 3600
                 },
-    % FIXME move code below to start_system/2?x
-    ChildSpecs =
-        case {Role, is_socket_server(Options)} of
-            {server, false} ->
-                [acceptor_sup_child_spec(_SysSup=self(), Address, Options)];
-            _ ->
-                []
-        end,
-    {ok, {SupFlags,ChildSpecs}}.
+    {ok, {SupFlags, []}}.
 
 %%%=========================================================================
 %%% Service API
@@ -306,13 +296,15 @@ start_acceptor(SysPid, Address, Options) ->
                     {ok, _} = supervisor:start_child(AcceptorSup, []),
                     {ok,SysPid}; % sic!
                 {ok,_AcceptorSup,_Info} ->
-                    %% FIXME ? REMOVE
+                    %% [ssh_system_sup] FIXME ? REMOVE - making dialyzer happY?
                     ?DBG("WHEN DOES THIS HAPPEN???"),
                     {ok,SysPid}; % sic!
                 {error,Error} ->
                     {error,Error}
             end
     end.
+
+
 
 refresh_lsocket(Options0) ->
     {_OldLSock, LHost, LPort, _SockOwner} =
