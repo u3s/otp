@@ -66,6 +66,7 @@ acceptor_init(AcceptorSup, SystemSup,
                        list_to_binary(ssh_lib:format_address_port(Address, Port))}),
     AcceptTimeout = ?GET_INTERNAL_OPT(timeout, Opts, ?DEFAULT_TIMEOUT),
     AcceptBudget = ?GET_INTERNAL_OPT(accept_budget, Opts, ?DEFAULT_TIMEOUT),
+    ?DBG("+++ Acceptor started, budget = ~p", [AcceptBudget]),
     {LSock, _LHost, _LPort, _SockOwner} =
         ?GET_INTERNAL_OPT(lsocket, Opts, undefined),
     proc_lib:init_ack(AcceptorSup, {ok, self()}),
@@ -74,6 +75,7 @@ acceptor_init(AcceptorSup, SystemSup,
 
 %%%----------------------------------------------------------------
 acceptor_loop(_, _, _, _, _, _AcceptBudget = 0, _) ->
+    ?DBG("XXX Acceptor terminate XXX"),
     ok;
 acceptor_loop(Port, Address, Opts, ListenSocket, AcceptTimeout, AcceptBudget0,
               Sups) ->
@@ -84,10 +86,9 @@ acceptor_loop(Port, Address, Opts, ListenSocket, AcceptTimeout, AcceptBudget0,
                 PeerName = inet:peername(Socket),
                 ParallelLogin = ?GET_OPT(parallel_login, Opts),
                 MaxSessions = ?GET_OPT(max_sessions, Opts),
-                {NumSessions, AcceptorCnt} = number_of_connections(Sups),
-                ok = maybe_add_acceptor(ParallelLogin, AcceptorCnt),
+                NumSessions = number_of_connections(Sups),
                 case handle_connection(Address, Port, PeerName, Opts, Socket,
-                                       MaxSessions, NumSessions, ParallelLogin) of
+                                       MaxSessions, NumSessions, ParallelLogin, Sups) of
                     {error,Error} ->
                         catch close(Socket, Opts),
                         handle_error(Error, Address, Port, PeerName);
@@ -108,33 +109,21 @@ acceptor_loop(Port, Address, Opts, ListenSocket, AcceptTimeout, AcceptBudget0,
 
 %%%----------------------------------------------------------------
 handle_connection(_Address, _Port, _Peer, _Options, _Socket,
-                  MaxSessions, NumSessions, _ParallelLogin)
+                  MaxSessions, NumSessions, _ParallelLogin, _)
   when NumSessions >= MaxSessions->
     {error,{max_sessions,MaxSessions}};
 handle_connection(_Address, _Port, {error,Error}, _Options, _Socket,
-                  _MaxSessions, _NumSessions, _ParallelLogin) ->
+                  _MaxSessions, _NumSessions, _ParallelLogin, _) ->
     {error,Error};
 handle_connection(Address, Port, _Peer, Options, Socket,
-                  _MaxSessions, _NumSessions, ParallelLogin)
+                  _MaxSessions, _NumSessions, ParallelLogin, _)
   when ParallelLogin == false ->
     handle_connection(Address, Port, Options, Socket);
-%% FIXME clause below is to be deleted, replaced with maybe_add_acceptor/2 functionality
 handle_connection(Address, Port, _Peer, Options, Socket,
-                  _MaxSessions, _NumSessions, ParallelLogin)
+                  _MaxSessions, _NumSessions, ParallelLogin, {_, AcceptorSup})
   when ParallelLogin == true ->
-    Ref = make_ref(),
-    Pid = spawn_link(
-            fun() ->
-                    process_flag(trap_exit, true),
-                    receive
-                        {start,Ref} ->
-                            handle_connection(Address, Port, Options, Socket)
-                    after 10000 ->
-                            {error, timeout2}
-                    end
-            end),
-    catch gen_tcp:controlling_process(Socket, Pid),
-    Pid ! {start,Ref},
+    {ok, _} = supervisor:start_child(AcceptorSup, [temporary]),
+    handle_connection(Address, Port, Options, Socket),
     ok.
 
 handle_connection(Address, Port, Options0, Socket) ->
@@ -197,12 +186,12 @@ handle_error(Reason, ToAddress, ToPort, FromAddress, FromPort) ->
 %%     %% FIXME add permanent acceptor to the pool
 %%     %% FIXME should they be permanent or should an integer budget should be specfied?
 %%     ok;
-maybe_add_acceptor(true, _) ->
-    %% FIXME add volatile acceptor to the pool
-    %% FIXME discuss - should we have a limit here as in SSH? MaxStartups
-    ok;
-maybe_add_acceptor(_, _) ->
-    ok.
+%% maybe_add_acceptor(_ParallelLogin = true, _MaxSessions, _NumSessions, _AcceptorCnt) ->
+%%     %% FIXME add volatile acceptor to the pool
+%%     %% FIXME discuss - should we have a limit here as in SSH? MaxStartups
+%%     ok;
+%% maybe_add_acceptor(_, _, _, _) ->
+%%     ok.
 
 -define(SEARCH_FUN(Sup, Type, Module),
         fun() ->
@@ -212,12 +201,13 @@ maybe_add_acceptor(_, _) ->
                   end, 0, supervisor:which_children(Sup))
         end()).
 
-number_of_connections({SysSupPid, AcceptorSupPid}) ->
+number_of_connections({SysSupPid, _AcceptorSupPid}) ->
     NumSessions = ?SEARCH_FUN(SysSupPid, supervisor, ssh_connection_sup),
-    AcceptorCnt = ?SEARCH_FUN(AcceptorSupPid, worker, ssh_acceptor),
+    %% AcceptorCnt = ?SEARCH_FUN(AcceptorSupPid, worker, ssh_acceptor),
     %% ?DBG_TERM(supervisor:which_children(AcceptorSupPid)),
-    ?DBG_TERM({NumSessions, AcceptorCnt}),
-    {NumSessions, AcceptorCnt}.
+    %% ?DBG_TERM({NumSessions, AcceptorCnt}),
+    %% {NumSessions, AcceptorCnt}.
+    NumSessions.
 
 accept_budget(permanent) ->
     infinity;
