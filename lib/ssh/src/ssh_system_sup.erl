@@ -236,16 +236,6 @@ get_options(Sup, Address = #address{}) ->
 %%%=========================================================================
 %%%  Internal functions
 %%%=========================================================================
-
-%% A separate function because this spec is need in >1 places
-acceptor_sup_child_spec(SysSup, Address, Options) ->
-    #{id       => {ssh_acceptor_sup,Address},
-      start    => ?accsup_start(SysSup, Address, Options),
-      restart  => transient,
-      significant => true,
-      type     => supervisor
-     }.
-
 lookup(SupModule, SystemSup) ->
     lists:keyfind([SupModule], 4, supervisor:which_children(SystemSup)).
 
@@ -281,8 +271,13 @@ start_acceptor(SysPid, Address, Options) ->
         {_,_,supervisor,_} ->
             {error, eaddrinuse};
         false ->
-            %% FIXME why acceptor_sup startup is repeated (not re-used here?)
-            AcceptorSupSpec = acceptor_sup_child_spec(SysPid, Address, Options),
+            AcceptorSupSpec =
+                #{id       => {ssh_acceptor_sup,Address},
+                  start    => ?accsup_start(SysPid, Address, Options),
+                  restart  => transient,
+                  significant => true,
+                  type     => supervisor
+                 },
             case supervisor:start_child(SysPid, AcceptorSupSpec) of
                 {ok, AcceptorSup} ->
                     ?DBG(),
