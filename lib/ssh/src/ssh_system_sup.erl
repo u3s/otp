@@ -258,10 +258,6 @@ start_acceptor(SysPid, Address, Options) ->
                     ?DBG(),
                     {ok, _} = supervisor:start_child(AcceptorSup, []),
                     {ok,SysPid}; % sic!
-                {ok,_AcceptorSup,_Info} ->
-                    %% [ssh_system_sup] FIXME ? REMOVE - making dialyzer happY?
-                    ?DBG("WHEN DOES THIS HAPPEN???"),
-                    {ok,SysPid}; % sic!
                 {error,Error} ->
                     {error,Error}
             end
