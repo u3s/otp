@@ -66,9 +66,9 @@ acceptor_init(AcceptorSup, SystemSup,
                        list_to_binary(ssh_lib:format_address_port(Address, Port))}),
     AcceptTimeout = ?GET_INTERNAL_OPT(timeout, Opts, ?DEFAULT_TIMEOUT),
     AcceptBudget = ?GET_INTERNAL_OPT(accept_budget, Opts, ?DEFAULT_TIMEOUT),
-    ?DBG("+++ Acceptor started, budget = ~p", [AcceptBudget]),
     {LSock, _LHost, _LPort, _SockOwner} =
         ?GET_INTERNAL_OPT(lsocket, Opts, undefined),
+    ?DBG("+++ Acceptor started, budget = ~p lsocket = ~p accept_timeout = ~p", [AcceptBudget, LSock, AcceptTimeout]),
     proc_lib:init_ack(AcceptorSup, {ok, self()}),
     acceptor_loop(Port, Address, Opts, LSock, AcceptTimeout, AcceptBudget,
                   {SystemSup, AcceptorSup}).
@@ -203,9 +203,9 @@ handle_error(Reason, ToAddress, ToPort, FromAddress, FromPort) ->
 
 number_of_connections({SysSupPid, _AcceptorSupPid}) ->
     NumSessions = ?SEARCH_FUN(SysSupPid, supervisor, ssh_connection_sup),
-    %% AcceptorCnt = ?SEARCH_FUN(AcceptorSupPid, worker, ssh_acceptor),
+    AcceptorCnt = ?SEARCH_FUN(_AcceptorSupPid, worker, ssh_acceptor),
     %% ?DBG_TERM(supervisor:which_children(AcceptorSupPid)),
-    %% ?DBG_TERM({NumSessions, AcceptorCnt}),
+    ?DBG_TERM({NumSessions, AcceptorCnt}),
     %% {NumSessions, AcceptorCnt}.
     NumSessions.
 
