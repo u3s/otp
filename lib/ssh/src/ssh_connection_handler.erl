@@ -408,7 +408,16 @@ init([Role, Socket, Opts]) when Role==client ; Role==server ->
     %% ssh_params will be updated after receiving socket_control event
     %% in wait_for_socket state;
     D = #data{socket = Socket, ssh_params = #ssh{role = Role, opts = Opts}},
-    {ok, {wait_for_socket, Role}, D}.
+    ParallelLogin = ?GET_OPT(parallel_login, Opts, disabled),
+    case ParallelLogin of
+        true ->
+            NegTimeout = ?GET_INTERNAL_OPT(negotiation_timeout, Opts,
+                                           ?GET_OPT(negotiation_timeout, Opts)),
+            {ok, {wait_for_socket, Role}, D,
+             [{{timeout, negotiation_timeout}, NegTimeout, close_connection}]};
+        _ ->
+            {ok, {wait_for_socket, Role}, D}
+    end.
 
 %%%----------------------------------------------------------------
 %%% Connection start and initialization helpers
@@ -725,6 +734,9 @@ handle_event(internal, {#ssh_msg_kexinit{},_}, {connected,Role}, D0) ->
 		key_exchange_init_msg = KeyInitMsg},
     send_bytes(SshPacket, D),
     {next_state, {kexinit,Role,renegotiate}, D, [postpone, {change_callback_module,ssh_fsm_kexinit}]};
+
+handle_event({timeout, negotiation_timeout}, close_connection, _StateName, _D) ->
+    {stop, {shutdown,"Negotiation timeout."}};
 
 handle_event(internal, #ssh_msg_disconnect{description=Desc} = Msg, StateName, D0) ->
     {disconnect, _, RepliesCon} =

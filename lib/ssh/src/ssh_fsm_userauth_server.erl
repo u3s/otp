@@ -74,6 +74,7 @@ handle_event(internal,
                     D = connected_state(Reply, Ssh1, User, Method, D0),
                     {next_state, {connected,server}, D,
                      [set_max_initial_idle_timeout(D),
+                      {{timeout, negotiation_timeout}, cancel},
                       {change_callback_module,ssh_connection_handler}
                      ]
                     }
@@ -90,6 +91,7 @@ handle_event(internal,
                             D = connected_state(Reply, Ssh1, User, Method, D0),
                             {next_state, {connected,server}, D,
                              [set_max_initial_idle_timeout(D),
+                              {{timeout, negotiation_timeout}, cancel},
                               {change_callback_module,ssh_connection_handler}
                              ]};
 			{not_authorized, {User, Reason}, {Reply, Ssh}} when Method == "keyboard-interactive" ->
@@ -126,6 +128,7 @@ handle_event(internal, #ssh_msg_userauth_info_response{} = Msg, {userauth_keyboa
             D = connected_state(Reply, Ssh1, User, "keyboard-interactive", D0),
             {next_state, {connected,server}, D,
              [set_max_initial_idle_timeout(D),
+              {{timeout, negotiation_timeout}, cancel},
               {change_callback_module,ssh_connection_handler}
              ]};
 	{not_authorized, {User, Reason}, {Reply, Ssh}} ->
@@ -144,6 +147,7 @@ handle_event(internal, #ssh_msg_userauth_info_response{} = Msg, {userauth_keyboa
     D = connected_state(Reply, Ssh1, User, "keyboard-interactive", D0),
     {next_state, {connected,server}, D,
      [set_max_initial_idle_timeout(D),
+      {{timeout, negotiation_timeout}, cancel},
       {change_callback_module,ssh_connection_handler}
      ]
     };
