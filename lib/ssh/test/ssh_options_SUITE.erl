@@ -29,6 +29,7 @@
 
 -include_lib("common_test/include/ct.hrl").
 -include_lib("kernel/include/file.hrl").
+-include_lib("ssh/src/ssh_transport.hrl").
 -include("ssh_test_lib.hrl").
 
 %%% Test cases
@@ -80,6 +81,7 @@
 	 connectfun4_server/1,
 	 disconnectfun2_client/1,
 	 disconnectfun2_server/1,
+	 disconnectfun2_kexinit_server/1,
 	 hostkey_fingerprint_check/1,
 	 hostkey_fingerprint_check_md5/1,
 	 hostkey_fingerprint_check_sha/1,
@@ -125,6 +127,7 @@ all() ->
      connectfun4_server,
      disconnectfun2_client,
      disconnectfun2_server,
+     disconnectfun2_kexinit_server,
      connectfun_disconnectfun_client,
      server_password_option,
      server_userpassword_option,
@@ -967,9 +970,9 @@ disconnectfun2_server(Config) ->
     Res =
         receive
             {disconnect_client,Ref,R,Extra} ->
-                %% Code 14 is SSH_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE
-                %% https://datatracker.ietf.org/doc/html/rfc4253#section-11.1
-                #{code := 14, details := Details, connection_info := ConnInfo} = Extra,
+                #{code := ?SSH_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE,
+                  details := Details,
+                  connection_info := ConnInfo} = Extra,
                 <<"User auth failed for: \"foo\"">> = iolist_to_binary(Details),
                 disconnect_sent = R,
                 Keys = [client_version, server_version, peer, user, sockname, options,
@@ -977,7 +980,7 @@ disconnectfun2_server(Config) ->
                 true = lists:all(fun({K, _}) -> lists:member(K, Keys) end, ConnInfo),
                 ct:log("Disconnect result client: ~p ~p",[R, Extra]),
                 receive
-                    {disconnect_server,RefS,RS,ExtraS} ->
+                    {disconnect_server,Ref,RS,ExtraS} ->
                         %% Code is only available when a disconnect message is sent
                         #{code := undefined,
                           details := DetailsS,
@@ -986,6 +989,79 @@ disconnectfun2_server(Config) ->
                           "Unable to connect using the available authentication methods">> =
                             iolist_to_binary(DetailsS),
                         disconnect_received = RS,
+                        KeysS = [client_version, server_version, peer, user, sockname, options,
+                                algorithms, user_auth],
+                        true = lists:all(fun({K, _}) -> lists:member(K, KeysS) end, ConnInfoS),
+                        ct:log("Disconnect result server: ~p ~p",[RS, ExtraS])
+                after 2000 ->
+                        {fail, "No disconnectfun action for server"}
+                end
+        after 2000 ->
+                {fail, "No disconnectfun action"}
+        end,
+    ssh:stop_daemon(Pid),
+    Res.
+
+%%--------------------------------------------------------------------
+%% KEXINIT negotiation failure
+disconnectfun2_kexinit_server(Config) ->
+    UserDir = proplists:get_value(user_dir, Config),
+    SysDir = proplists:get_value(data_dir, Config),
+    Parent = self(),
+    Ref = make_ref(),
+    DiscFunS = fun(R, Extra) -> Parent ! {disconnect_server,Ref,R,Extra} end,
+    DiscFunC = fun(R, Extra) -> Parent ! {disconnect_client,Ref,R,Extra} end,
+    ServerKexAlg = 'ecdh-sha2-nistp256',
+    ServerKexAlgStr = atom_to_list(ServerKexAlg),
+    {Pid, Host, Port} = ssh_test_lib:daemon([{system_dir, SysDir},
+					     {user_dir, UserDir},
+                                             {disconnectfun, DiscFunS},
+					     {password, "morot"},
+                                             {preferred_algorithms,
+                                              [{kex, [ServerKexAlg]}]}]),
+    ClientKexAlg = 'curve448-sha512',
+    ClientKexAlgStr = atom_to_list(ClientKexAlg),
+    {error, Reason} =
+	ssh:connect(Host, Port, [{silently_accept_hosts, true},
+                                 {save_accepted_host, false},
+                                 {user, "foo"},
+                                 {password, "wrong_password"},
+                                 {user_dir, UserDir},
+                                 {user_interaction, false},
+                                 {disconnectfun, DiscFunC},
+                                 {preferred_algorithms,
+                                  [{kex, [ClientKexAlg]}]}]),
+    ct:log("Error reason: ~p", [Reason]),
+    Res =
+        receive
+            {disconnect_client,Ref,R,Extra} ->
+                #{code := ?SSH_DISCONNECT_KEY_EXCHANGE_FAILED,
+                  details := Details,
+                  connection_info := ConnInfo} = Extra,
+                ExpMessage = <<"No common key exchange algorithm">>,
+                ExpMessageSize = byte_size(ExpMessage),
+                #{text := DetailsTxt,
+                  details := #{our := OurAlgs, peer := PeerAlgs}} = Details,
+                [ClientKexAlgStr, _, _, _] = OurAlgs,
+                [ServerKexAlgStr, _, _, _] = PeerAlgs,
+                <<ExpMessage:ExpMessageSize/binary, _/binary>> = iolist_to_binary(DetailsTxt),
+                disconnect_sent = R,
+                Keys = [client_version, server_version, peer, user, sockname, options,
+                        algorithms, user_auth],
+                true = lists:all(fun({K, _}) -> lists:member(K, Keys) end, ConnInfo),
+                ct:log("Disconnect result client: ~p ~p",[R, Extra]),
+                receive
+                    {disconnect_server,Ref,RS,ExtraS} ->
+                        %% Code is only available when a disconnect message is sent
+                        #{code := ?SSH_DISCONNECT_KEY_EXCHANGE_FAILED,
+                          details := DetailsS,
+                          connection_info := ConnInfoS} = ExtraS,
+                        #{text := DetailsTxtS,
+                          details := #{our := OurAlgsS, peer := PeerAlgsS}} = DetailsS,
+                        [ServerKexAlgStr, _, _, _] = OurAlgsS,
+                        [ClientKexAlgStr, _, _, _] = PeerAlgsS,
+                        <<ExpMessage:ExpMessageSize/binary, _/binary>> = iolist_to_binary(DetailsTxtS),
+                        disconnect_sent = RS,
                         KeysS = [client_version, server_version, peer, user, sockname, options,
                                 algorithms, user_auth],
                         true = lists:all(fun({K, _}) -> lists:member(K, KeysS) end, ConnInfoS),

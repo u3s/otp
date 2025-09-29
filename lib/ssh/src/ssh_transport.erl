@@ -435,27 +435,32 @@ handle_kexinit_msg(#ssh_msg_kexinit{} = CounterPart, #ssh_msg_kexinit{} = Own,
     end.
 
 kexinit_error(Class, Error, Role, Own, CounterPart, Ssh) ->
-    {Fmt,Args} =
+    {{Fmt,Args}, Details} =
         case {Class,Error} of
             {error, {badmatch,{false,Alg}}} ->
-                {Txt,W,C} = alg_info(Role, Alg),
+                {AlgType, OwnIndex, CounterIndex} = alg_info(Role, Alg),
+                OwnAlgs = element(OwnIndex, Own),
+                CounterPartAlgs = element(CounterIndex, CounterPart),
                 MsgFun =
                     fun(debug) ->
                             {"No common ~s algorithm,~n"
                              "  we have:~n    ~s~n"
                              "  peer have:~n    ~s~n",
-                             [Txt,
-                              lists:join(", ", element(W,Own)),
-                              lists:join(", ", element(C,CounterPart))]};
+                             [AlgType,
+                              lists:join(", ", OwnAlgs),
+                              lists:join(", ", CounterPartAlgs)]};
                        (_) ->
-                            {"No common ~s algorithm", [Txt]}
+                            {"No common ~s algorithm", [AlgType]}
                     end,
-                ?SELECT_MSG(MsgFun);
+                {?SELECT_MSG(MsgFun),
+                 #{our => OwnAlgs,
+                   peer => CounterPartAlgs}};
             _ ->
-                {"Kexinit failed in ~p: ~p:~p", [Role,Class,Error]}
+                {{"Kexinit failed in ~p: ~p:~p", [Role,Class,Error]}, #{}}
         end,
     try io_lib:format(Fmt, Args, [{chars_limit, ssh_lib:max_log_len(Ssh)}]) of
-        R -> R
+        Msg ->
+            #{text => Msg, details => Details}
     catch
         _:_ ->
             io_lib:format("Kexinit failed in ~p: ~p:~p", [Role, Class, Error],
@@ -465,8 +470,8 @@ kexinit_error(Class, Error, Role, Own, CounterPart, Ssh) ->
 alg_info(client, Alg) ->
     alg_info(Alg);
 alg_info(server, Alg) ->
-    {Txt,C2s,S2c} = alg_info(Alg),
-    {Txt,S2c,C2s}.
+    {AlgType, C2s, S2c} = alg_info(Alg),
+    {AlgType, S2c, C2s}.
 
 alg_info("kex") ->        {"key exchange",
                            #ssh_msg_kexinit.kex_algorithms,

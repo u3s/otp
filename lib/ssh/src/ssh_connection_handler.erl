@@ -1866,21 +1866,25 @@ send_disconnect(Code, Reason, DetailedText, Module, Line, StateName, D0) ->
     call_disconnectfun_and_log_cond(LogMsg, DetailedText, Module, Line, StateName, D, Code),
     {{shutdown,Reason}, D}.
 
-call_disconnectfun_and_log_cond(LogMsg, DetailedText, Module, Line, StateName, D) ->
-    call_disconnectfun_and_log_cond(LogMsg, DetailedText, Module, Line, StateName, D, undefined).
-call_disconnectfun_and_log_cond(LogMsg, DetailedText, Module, Line, StateName, D, Code) ->
+call_disconnectfun_and_log_cond(LogMsg, Details, Module, Line, StateName, D) ->
+    call_disconnectfun_and_log_cond(LogMsg, Details, Module, Line, StateName, D, undefined).
+call_disconnectfun_and_log_cond(LogMsg, Details, Module, Line, StateName, D, Code) ->
     Reason = case Code of
                  undefined -> internal_disconnect;
                  Code when is_integer(Code) -> disconnect_sent
              end,
-    case disconnect_fun(LogMsg, D, Reason, DetailedText, Code) of
+    case disconnect_fun(LogMsg, D, Reason, Details, Code) of
         void ->
+            GetTxt =
+                fun(#{text := Text}) -> Text;
+                   (Text) -> Text
+                end,
             log(info, D,
                 "~s~n"
                 "State = ~p~n"
                 "Module = ~p, Line = ~p.~n"
                 "Details:~n  ~s~n",
-                [LogMsg, StateName, Module, Line, DetailedText]);
+                [LogMsg, StateName, Module, Line, GetTxt(Details)]);
         _ ->
             ok
     end.
