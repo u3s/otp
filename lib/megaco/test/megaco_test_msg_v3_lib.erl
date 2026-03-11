@@ -375,9 +375,9 @@ cre_TransactionReply(TransID, IAR, ARs)
     #'TransactionReply'{transactionId     = TransID,
 			immAckRequired    = IAR, 
 			transactionResult = Res};
-cre_TransactionReply(TransID, Res, SN) 
+cre_TransactionReply(TransID, Res, SN)
   when is_integer(SN), SN > 0, SN =< 65535;
-	SN == asn1_NOVALUE ->
+       SN == asn1_NOVALUE ->
     TR  = cre_TransactionReply(TransID, Res),
     TR#'TransactionReply'{segmentNumber = SN};
 cre_TransactionReply(TransID, Res, SN) ->
@@ -450,9 +450,9 @@ cre_ActionRequest(CtxID, CAAR, CmdReqs)
 cre_ActionRequest(CtxID, CtxReq, CAAR, CmdReqs)
   when is_integer(CtxID),
        is_record(CtxReq, 'ContextRequest') orelse
-	CtxReq == asn1_NOVALUE,
+       CtxReq == asn1_NOVALUE,
        is_record(CAAR, 'ContextAttrAuditRequest') orelse
-	CAAR == asn1_NOVALUE,
+       CAAR == asn1_NOVALUE,
        is_list(CmdReqs) ->
     #'ActionRequest'{contextId           = CtxID,
 		     contextRequest      = CtxReq,
@@ -533,9 +533,9 @@ cre_ContextRequest(Prio, Em, Top, Ieps)
 			   topologyReq    = Top,
 			   iepscallind    = Ieps},
     strip_ContextRequest(CR);
-cre_ContextRequest(Prio, Em, Top, Ctx) 
+cre_ContextRequest(Prio, Em, Top, Ctx)
   when is_integer(Prio) andalso 0 =< Prio andalso Prio =< 15 orelse
-	Prio =:= asn1_NOVALUE,
+       Prio =:= asn1_NOVALUE,
        is_boolean(Em) orelse Em =:= asn1_NOVALUE,
        is_list(Top) orelse Top =:= asn1_NOVALUE,
        is_list(Ctx) ->
@@ -630,8 +630,8 @@ strip_ContextRequest(#'ContextRequest'{priority    = asn1_NOVALUE,
 				       iepscallind = Ieps,
 				       contextProp = Prop} = CR) ->
     case (Top  == []    orelse Top  == asn1_NOVALUE) andalso
-	  (Ieps == false orelse Ieps == asn1_NOVALUE) andalso
-	  (Prop == []    orelse Prop == asn1_NOVALUE) of
+        (Ieps == false orelse Ieps == asn1_NOVALUE) andalso
+        (Prop == []    orelse Prop == asn1_NOVALUE) of
 	true ->
 	    asn1_NOVALUE;
 	false ->
@@ -683,7 +683,7 @@ cre_ContextAttrAuditRequest(Top, Em, Prio, Ieps, Ctx, SelPrio)
        ((Ieps =:= 'NULL') orelse (Ieps =:= asn1_NOVALUE)) andalso
        (is_list(Ctx)      orelse (Ctx  =:= asn1_NOVALUE)) andalso
        (is_integer(SelPrio) andalso 0 =< SelPrio andalso SelPrio =< 15 orelse
-	SelPrio =:= asn1_NOVALUE) ->
+        SelPrio =:= asn1_NOVALUE) ->
     CAAR = #'ContextAttrAuditRequest'{topology       = Top,
 				      emergency      = Em,
 				      priority       = Prio,
@@ -724,7 +724,7 @@ cre_ContextAttrAuditRequest(Top, Em, Prio, Ieps, Ctx,
        Ieps == 'NULL' orelse Ieps == asn1_NOVALUE,
        is_list(Ctx)   orelse Ctx  == asn1_NOVALUE,
        is_integer(SelPrio) andalso 0 =< SelPrio andalso SelPrio =< 15 orelse
-	SelPrio == asn1_NOVALUE,
+       SelPrio == asn1_NOVALUE,
        is_boolean(SelEm) orelse SelEm == asn1_NOVALUE,
        is_boolean(SelIeps) orelse SelIeps == asn1_NOVALUE ->
     CAAR = #'ContextAttrAuditRequest'{topology          = Top,
@@ -738,14 +738,14 @@ cre_ContextAttrAuditRequest(Top, Em, Prio, Ieps, Ctx,
     strip_ContextAttrAuditRequest(CAAR).
 
 cre_ContextAttrAuditRequest(Top, Em, Prio, Ieps, Ctx,
-			    SelPrio, SelEm, SelIeps, SelLog)
+                            SelPrio, SelEm, SelIeps, SelLog)
   when Top  == 'NULL' orelse Top  == asn1_NOVALUE,
        Em   == 'NULL' orelse Em   == asn1_NOVALUE,
        Prio == 'NULL' orelse Prio == asn1_NOVALUE,
        Ieps == 'NULL' orelse Ieps == asn1_NOVALUE,
        is_list(Ctx)   orelse Ctx  == asn1_NOVALUE,
        is_integer(SelPrio) andalso 0 =< SelPrio andalso SelPrio =< 15 orelse
-	SelPrio == asn1_NOVALUE,
+       SelPrio == asn1_NOVALUE,
        is_boolean(SelEm) orelse SelEm == asn1_NOVALUE,
        is_boolean(SelIeps) orelse SelIeps == asn1_NOVALUE ->
     case ((SelLog == asn1_NOVALUE) orelse is_SelectLogic(SelLog)) of
@@ -860,29 +860,29 @@ cre_CommandReply(serviceChangeReply = Tag, Rep)
 
 cre_TopologyRequest(From, To, TD)
   when is_record(From, 'TerminationID') orelse
-	is_record(From, megaco_term_id),
+       is_record(From, megaco_term_id),
        is_record(To, 'TerminationID') orelse
-	is_record(To, megaco_term_id),
+       is_record(To, megaco_term_id),
        TD == bothway orelse TD == isolate orelse TD == oneway ->
     #'TopologyRequest'{terminationFrom   = From,
 		       terminationTo     = To,
 		       topologyDirection = TD};
 cre_TopologyRequest(From, To, TDE)
   when is_record(From, 'TerminationID') orelse
-	is_record(From, megaco_term_id),
+       is_record(From, megaco_term_id),
        is_record(To, 'TerminationID') orelse
-	is_record(To, megaco_term_id),
+       is_record(To, megaco_term_id),
        TDE == onewayexternal orelse TDE == onewayboth ->
     #'TopologyRequest'{terminationFrom            = From,
 		       terminationTo              = To,
-		       topologyDirection          = oneway, 
+                       topologyDirection          = oneway,
 		       topologyDirectionExtension = TDE}.
 
 cre_TopologyRequest(From, To, TD, SID)
   when is_record(From, 'TerminationID') orelse
-	is_record(From, megaco_term_id),
+       is_record(From, megaco_term_id),
        is_record(To, 'TerminationID') orelse
-	is_record(To, megaco_term_id),
+       is_record(To, megaco_term_id),
        TD == bothway orelse TD == isolate orelse TD == oneway,
        is_integer(SID) ->
     #'TopologyRequest'{terminationFrom   = From,
@@ -891,9 +891,9 @@ cre_TopologyRequest(From, To, TD, SID)
 		       streamID          = SID};
 cre_TopologyRequest(From, To, SID, TDE)
   when is_record(From, 'TerminationID') orelse
-	is_record(From, megaco_term_id),
+       is_record(From, megaco_term_id),
        is_record(To, 'TerminationID') orelse
-	is_record(To, megaco_term_id),
+       is_record(To, megaco_term_id),
        is_integer(SID),
        TDE == onewayexternal orelse TDE == onewayboth ->
     #'TopologyRequest'{terminationFrom            = From,
@@ -1314,7 +1314,7 @@ cre_ObservedEvent(EN, TN)
 cre_ObservedEvent(EN, SID, EPL) 
   when is_list(EN), is_integer(SID), is_list(EPL) ->
     #'ObservedEvent'{eventName    = EN,
-		     streamID     = SID,
+                     streamID     = SID,
 		     eventParList = EPL};
 cre_ObservedEvent(EN, EPL, TN)
   when is_list(EN), is_list(EPL), is_record(TN, 'TimeNotation') ->
@@ -1632,7 +1632,7 @@ cre_RequestedEvent(N, EA)
 cre_RequestedEvent(N, SID, EPL) 
   when is_list(N), is_integer(SID), is_list(EPL) ->
     #'RequestedEvent'{pkgdName  = N,
-		      streamID  = SID,
+                      streamID  = SID,
 		      evParList = EPL};
 cre_RequestedEvent(N, EA, EPL)
   when is_list(N), is_record(EA, 'RequestedActions'), is_list(EPL) ->
@@ -1745,7 +1745,7 @@ cre_SecondRequestedEvent(N, EPL) ->
 cre_SecondRequestedEvent(N, SID, EPL) 
   when is_list(N), is_integer(SID), is_list(EPL) ->
     #'SecondRequestedEvent'{pkgdName  = N,
-			    streamID  = SID,
+                            streamID  = SID,
 			    evParList = EPL};
 cre_SecondRequestedEvent(N, EA, EPL)
   when is_list(N),
@@ -1818,7 +1818,7 @@ cre_SecondRequestedActions(KA, {Tag, _} = EDM, SD)
        is_atom(Tag),
        is_list(SD) ->
     #'SecondRequestedActions'{keepActive        = KA,
-			      eventDM           = EDM,
+                              eventDM           = EDM,
 			      signalsDescriptor = SD};
 cre_SecondRequestedActions(KA, SD, {Tag, _} = NB)
   when is_boolean(KA) orelse KA == asn1_NOVALUE,
@@ -1887,9 +1887,9 @@ cre_Signal(N, SID, ST, Dur, NC, KA, SPL)
   when is_list(N),
        is_integer(SID) orelse SID == asn1_NOVALUE,
        ST == brief orelse ST == onOff orelse ST == timeOut orelse
-	ST == asn1_NOVALUE,
+       ST == asn1_NOVALUE,
        is_integer(Dur) andalso 0 =< Dur andalso Dur =< 65535 orelse
-	Dur == asn1_NOVALUE,
+       Dur == asn1_NOVALUE,
        is_list(NC) orelse NC == asn1_NOVALUE,
        is_boolean(KA) orelse KA == asn1_NOVALUE,
        is_list(SPL) ->
@@ -1905,14 +1905,14 @@ cre_Signal(N, SID, ST, Dur, NC, KA, SPL, Dir, RID)
   when is_list(N),
        is_integer(SID) orelse SID == asn1_NOVALUE,
        ST == brief orelse ST == onOff orelse ST == timeOut orelse
-	ST == asn1_NOVALUE,
+       ST == asn1_NOVALUE,
        is_integer(Dur) andalso 0 =< Dur andalso Dur =< 65535 orelse
-	Dur == asn1_NOVALUE,
+       Dur == asn1_NOVALUE,
        is_list(NC) orelse NC == asn1_NOVALUE,
        is_boolean(KA) orelse KA == asn1_NOVALUE,
        is_list(SPL),
        Dir == internal orelse Dir == external orelse Dir == both orelse
-	Dir == asn1_NOVALUE,
+       Dir == asn1_NOVALUE,
        is_integer(RID) orelse RID == asn1_NOVALUE ->
     #'Signal'{signalName       = N,
 	      streamID         = SID,
@@ -1928,14 +1928,14 @@ cre_Signal(N, SID, ST, Dur, NC, KA, SPL, Dir, RID, ISIG)
   when is_list(N),
        is_integer(SID) orelse SID == asn1_NOVALUE,
        ST == brief orelse ST == onOff orelse ST == timeOut orelse
-	ST == asn1_NOVALUE,
+       ST == asn1_NOVALUE,
        is_integer(Dur) andalso 0 =< Dur andalso Dur =< 65535 orelse
-	Dur == asn1_NOVALUE,
+       Dur == asn1_NOVALUE,
        is_list(NC) orelse NC == asn1_NOVALUE,
        is_boolean(KA) orelse KA == asn1_NOVALUE,
        is_list(SPL),
        Dir == internal orelse Dir == external orelse Dir == both orelse
-	Dir == asn1_NOVALUE,
+       Dir == asn1_NOVALUE,
        is_integer(RID) orelse RID == asn1_NOVALUE,
        is_integer(ISIG) orelse ISIG == asn1_NOVALUE ->
     #'Signal'{signalName       = N,
@@ -2049,14 +2049,14 @@ cre_DigitMapValue(Start, Short, Long, DMB) ->
 
 cre_DigitMapValue(Start, Short, Long, DMB, Dur) 
   when is_integer(Start) andalso 0 =< Start andalso Start =< 99 orelse
-	Start == asn1_NOVALUE,
+       Start == asn1_NOVALUE,
        is_integer(Short) andalso 0 =< Short andalso Short =< 99 orelse
-	Short == asn1_NOVALUE,
+       Short == asn1_NOVALUE,
        is_integer(Long) andalso 0 =< Long andalso Long =< 99 orelse
-	Long == asn1_NOVALUE,
+       Long == asn1_NOVALUE,
        is_list(DMB),
        is_integer(Dur) andalso 0 =< Dur andalso Dur =< 99 orelse
-	Dur == asn1_NOVALUE ->
+       Dur == asn1_NOVALUE ->
     #'DigitMapValue'{startTimer    = Start,
 		     shortTimer    = Short,
 		     longTimer     = Long,
@@ -2079,11 +2079,11 @@ cre_ServiceChangeParm(M, Addr, Ver, Prof, R, D, Mid, TS, I) ->
 cre_ServiceChangeParm(M, Addr, Ver, Prof, R, D, Mid, TS, I, IF) 
   when is_atom(M),
        is_integer(Ver) andalso 0 =< Ver andalso Ver =< 99 orelse
-	Ver == asn1_NOVALUE,
+       Ver == asn1_NOVALUE,
        is_record(Prof, 'ServiceChangeProfile') orelse Prof == asn1_NOVALUE,
        is_list(R),
        is_integer(D) andalso 0 =< D andalso D =< 4294967295 orelse
-	D == asn1_NOVALUE,
+       D == asn1_NOVALUE,
        is_record(TS, 'TimeNotation') orelse TS == asn1_NOVALUE,
        is_record(I, 'AuditDescriptor') orelse I == asn1_NOVALUE,
        IF == 'NULL' orelse IF == asn1_NOVALUE ->
@@ -2132,7 +2132,7 @@ cre_ServiceChangeResParm(Addr, Prof) ->
 			     Prof, asn1_NOVALUE).
 cre_ServiceChangeResParm(Mid, Addr, Ver, Prof, TS)
   when is_integer(Ver) andalso 0 =< Ver andalso Ver =< 99 orelse
-	Ver == asn1_NOVALUE,
+       Ver == asn1_NOVALUE,
        is_record(Prof, 'ServiceChangeProfile') orelse Prof == asn1_NOVALUE,
        is_record(TS, 'TimeNotation') orelse TS == asn1_NOVALUE ->
     F = fun(A) -> 
@@ -2559,8 +2559,8 @@ chk_Transaction({Tag, Val} = Trans, Trans) ->
 chk_Transaction({Tag, Val1} = Trans1, {Tag, Val2} = Trans2) ->
     d("chk_Transaction -> entry (2)"),
     case is_Transaction_tag(Tag) andalso
-	  is_Transaction_val(Tag, Val1) andalso
-	  is_Transaction_val(Tag, Val2) of
+        is_Transaction_val(Tag, Val1) andalso
+        is_Transaction_val(Tag, Val2) of
 	true ->
 	    chk_Transaction_val(Tag, Val1, Val2);
 	false ->
@@ -2736,8 +2736,8 @@ chk_TransactionReply_transactionResult(Res, Res) ->
 chk_TransactionReply_transactionResult({Tag, Val1} = Res1, 
 				       {Tag, Val2} = Res2) ->
     case is_TransactionReply_transactionResult_tag(Tag) andalso
-	  is_TransactionReply_transactionResult_val(Tag, Val1) andalso
-	  is_TransactionReply_transactionResult_val(Tag, Val2) of
+        is_TransactionReply_transactionResult_val(Tag, Val1) andalso
+        is_TransactionReply_transactionResult_val(Tag, Val2) of
 	true ->
 	    chk_TransactionReply_transactionResult_val(Tag, Val1, Val2);
 	false ->
@@ -2746,9 +2746,9 @@ chk_TransactionReply_transactionResult({Tag, Val1} = Res1,
 chk_TransactionReply_transactionResult({Tag1, Val1} = Res1,
 				       {Tag2, Val2} = Res2) ->
     case is_TransactionReply_transactionResult_tag(Tag1) andalso
-	   is_TransactionReply_transactionResult_val(Tag1, Val1) andalso
-	  is_TransactionReply_transactionResult_tag(Tag2) andalso
-	   is_TransactionReply_transactionResult_val(Tag2, Val2) of
+        is_TransactionReply_transactionResult_val(Tag1, Val1) andalso
+        is_TransactionReply_transactionResult_tag(Tag2) andalso
+        is_TransactionReply_transactionResult_val(Tag2, Val2) of
 	true ->
 	    not_equal('TransactionReply_transactionResult', Res1, Res2);
 	false ->
@@ -3214,17 +3214,17 @@ chk_ContextRequest_iepscallind(E, E) ->
     chk_type(fun is_ContextRequest_iepscallind/1, 
 	     'ContextRequest_iepscallind', E);
 chk_ContextRequest_iepscallind(E1, E2) ->
-    case (is_ContextRequest_iepscallind(E1) andalso 
+    case (is_ContextRequest_iepscallind(E1) andalso
 	  is_ContextRequest_iepscallind(E2)) of
 	true ->
-	    case E1 == false andalso E2 == asn1_NOVALUE orelse
-		  E1 == asn1_NOVALUE andalso E2 == false of
+            case E1 == false andalso E2 == asn1_NOVALUE orelse
+                E1 == asn1_NOVALUE andalso E2 == false of
 		true ->
 		    ok;
 		false ->
 		    not_equal('ContextRequest_iepscallind', E1, E2)
 	    end;
-		
+
 	false ->
 	    wrong_type('ContextRequest_iepscallind', E1, E2)
     end.
@@ -6106,8 +6106,8 @@ chk_PropertyParm_extraInfo(EI, EI) ->
     chk_type(fun is_PropertyParm_extraInfo/1, 'PropertyParm_extraInfo', EI);
 chk_PropertyParm_extraInfo({Tag, Val1} = EI1, {Tag, Val2} = EI2) ->
     case is_PropertyParm_extraInfo_tag(Tag) andalso
-	  is_PropertyParm_extraInfo_val(Tag, Val1) andalso
-	  is_PropertyParm_extraInfo_val(Tag, Val2) of
+        is_PropertyParm_extraInfo_val(Tag, Val1) andalso
+        is_PropertyParm_extraInfo_val(Tag, Val2) of
 	true ->
 	    chk_PropertyParm_extraInfo_val(Tag, Val1, Val2);
 	false ->
@@ -6115,9 +6115,9 @@ chk_PropertyParm_extraInfo({Tag, Val1} = EI1, {Tag, Val2} = EI2) ->
     end;
 chk_PropertyParm_extraInfo({Tag1, Val1} = EI1, {Tag2, Val2} = EI2) ->
     case is_PropertyParm_extraInfo_tag(Tag1) andalso
-	   is_PropertyParm_extraInfo_val(Tag1, Val1) andalso
-	  is_PropertyParm_extraInfo_tag(Tag2) andalso
-	   is_PropertyParm_extraInfo_val(Tag2, Val2) of
+        is_PropertyParm_extraInfo_val(Tag1, Val1) andalso
+        is_PropertyParm_extraInfo_tag(Tag2) andalso
+        is_PropertyParm_extraInfo_val(Tag2, Val2) of
 	true ->
 	    not_equal('PropertyParm_extraInfo', EI1, EI2);
 	false ->
@@ -7502,8 +7502,8 @@ chk_SigParameter_extraInfo(EI, EI) ->
     chk_type(fun is_SigParameter_extraInfo/1, 'SigParameter_extraInfo', EI);
 chk_SigParameter_extraInfo({Tag, Val1} = EI1, {Tag, Val2} = EI2) ->
     case is_SigParameter_extraInfo_tag(Tag) andalso
-	  is_SigParameter_extraInfo_val(Tag, Val1) andalso
-	  is_SigParameter_extraInfo_val(Tag, Val2) of
+        is_SigParameter_extraInfo_val(Tag, Val1) andalso
+        is_SigParameter_extraInfo_val(Tag, Val2) of
 	true ->
 	    chk_SigParameter_extraInfo_val(Tag, Val1, Val2);
 	false ->
@@ -7511,9 +7511,9 @@ chk_SigParameter_extraInfo({Tag, Val1} = EI1, {Tag, Val2} = EI2) ->
     end;
 chk_SigParameter_extraInfo({Tag1, Val1} = EI1, {Tag2, Val2} = EI2) ->
     case is_SigParameter_extraInfo_tag(Tag1) andalso
-	   is_SigParameter_extraInfo_val(Tag1, Val1) andalso
-	  is_SigParameter_extraInfo_tag(Tag2) andalso
-	   is_SigParameter_extraInfo_val(Tag2, Val2) of
+        is_SigParameter_extraInfo_val(Tag1, Val1) andalso
+        is_SigParameter_extraInfo_tag(Tag2) andalso
+        is_SigParameter_extraInfo_val(Tag2, Val2) of
 	true ->
 	    not_equal('SigParameter_extraInfo', EI1, EI2);
 	false ->

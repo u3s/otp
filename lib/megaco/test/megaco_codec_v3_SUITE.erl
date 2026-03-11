@@ -1232,7 +1232,7 @@ compact_otp4085_1(Msg, Conf) ->
 
 compact_otp4085_1_chk1(Reason) ->
     case lists:keysearch(reason, 1, Reason) of
-	{value, {reason, {Line, Module, Crap}}} when is_integer(Line),
+        {value, {reason, {Line, Module, Crap}}} when is_integer(Line),
 						     is_atom(Module) ->
 	    Crap2 =
 		case (catch lists:flatten(Crap)) of
@@ -8754,7 +8754,7 @@ cre_SecReqEv(N, EPL) ->
     ?MSG_LIB:cre_SecondRequestedEvent(N, EPL).
 
 cre_SecReqEv(N, SID, EA) when is_list(N),
-			      is_integer(SID),
+                              is_integer(SID),
 			      is_record(EA, 'SecondRequestedActions') ->
     cre_SecReqEv(N, SID, EA, []);
 cre_SecReqEv(A, B, C) ->

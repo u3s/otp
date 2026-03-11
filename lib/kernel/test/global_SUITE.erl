@@ -384,7 +384,7 @@ both_known_1_test(Config) when is_list(Config) ->
 	       N1 = lists:sort(Names1_3),
 	       N2 = lists:sort(Names2_3),
 	       N3 = lists:sort(Names3_3),
-	       N1 =:= [p1, p2] andalso N2 =:= [p1, p2] andalso N3 =:= [p1, p2]
+               N1 =:= [p1, p2] andalso N2 =:= [p1, p2] andalso N3 =:= [p1, p2]
 	   end),
 
     write_high_level_trace(Config),

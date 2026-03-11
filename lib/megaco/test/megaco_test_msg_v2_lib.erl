@@ -1371,9 +1371,9 @@ cre_ServiceChangeParm(M, Addr, Ver, Prof, R, D, Mid, TS, I)
        is_integer(D) andalso 0 =< D andalso D =< 4294967295 orelse D == asn1_NOVALUE,
        is_record(TS, 'TimeNotation') orelse TS == asn1_NOVALUE,
        is_record(I, 'AuditDescriptor') orelse I == asn1_NOVALUE ->
-    F = fun(A) -> 
-		A == asn1_NOVALUE orelse
-	        is_tuple(A) andalso is_atom(element(1, A))
+    F = fun(A) ->
+                A == asn1_NOVALUE orelse
+                    is_tuple(A) andalso is_atom(element(1, A))
 	end,
     case F(Addr) andalso F(Mid) of
 	true ->
@@ -1413,9 +1413,9 @@ cre_ServiceChangeResParm(Mid, Addr, Ver, Prof, TS)
   when is_integer(Ver) andalso 0 =< Ver andalso Ver =< 99 orelse Ver == asn1_NOVALUE,
        is_record(Prof, 'ServiceChangeProfile') orelse Prof == asn1_NOVALUE,
        is_record(TS, 'TimeNotation') orelse TS == asn1_NOVALUE ->
-    F = fun(A) -> 
-		A == asn1_NOVALUE orelse
-		is_tuple(A) andalso is_atom(element(1, A))
+    F = fun(A) ->
+                A == asn1_NOVALUE orelse
+                    is_tuple(A) andalso is_atom(element(1, A))
 	end,
     case F(Addr) andalso F(Mid) of
 	true ->
@@ -1805,18 +1805,18 @@ chk_Transaction({Tag, Val} = Trans, {Tag, Val}) ->
     end;
 chk_Transaction({Tag, Val1} = Trans1, {Tag, Val2} = Trans2) ->
     case is_Transaction_tag(Tag) andalso
-	 is_Transaction_val(Tag, Val1) andalso
-	 is_Transaction_val(Tag, Val2) of
+        is_Transaction_val(Tag, Val1) andalso
+        is_Transaction_val(Tag, Val2) of
 	true ->
 	    chk_Transaction_val(Tag, Val1, Val2);
 	false ->
 	    wrong_type('Transaction', Trans1, Trans2)
     end;
 chk_Transaction({Tag1, Val1} = Trans1, {Tag2, Val2} = Trans2) ->
-    case is_Transaction_tag(Tag1) andalso 
-	 is_Transaction_val(Tag1, Val1) andalso
-	 is_Transaction_tag(Tag2) andalso 
-	 is_Transaction_val(Tag2, Val2) of
+    case is_Transaction_tag(Tag1) andalso
+        is_Transaction_val(Tag1, Val1) andalso
+        is_Transaction_tag(Tag2) andalso
+        is_Transaction_val(Tag2, Val2) of
 	true ->
 	    not_equal('Transaction', Trans1, Trans2);
 	false ->
@@ -1968,8 +1968,8 @@ chk_TransactionReply_transactionResult(Res, Res) ->
 chk_TransactionReply_transactionResult({Tag, Val1} = Res1, 
 				       {Tag, Val2} = Res2) ->
     case is_TransactionReply_transactionResult_tag(Tag) andalso
-	 is_TransactionReply_transactionResult_val(Tag, Val1) andalso
-	 is_TransactionReply_transactionResult_val(Tag, Val2) of
+        is_TransactionReply_transactionResult_val(Tag, Val1) andalso
+        is_TransactionReply_transactionResult_val(Tag, Val2) of
 	true ->
 	    chk_TransactionReply_transactionResult_val(Tag, Val1, Val2);
 	false ->
@@ -1978,9 +1978,9 @@ chk_TransactionReply_transactionResult({Tag, Val1} = Res1,
 chk_TransactionReply_transactionResult({Tag1, Val1} = Res1, 
 				       {Tag2, Val2} = Res2) ->
     case is_TransactionReply_transactionResult_tag(Tag1) andalso
-	 is_TransactionReply_transactionResult_val(Tag1, Val1) andalso
-	 is_TransactionReply_transactionResult_tag(Tag2) andalso
-	 is_TransactionReply_transactionResult_val(Tag2, Val2) of
+        is_TransactionReply_transactionResult_val(Tag1, Val1) andalso
+        is_TransactionReply_transactionResult_tag(Tag2) andalso
+        is_TransactionReply_transactionResult_val(Tag2, Val2) of
 	true ->
 	    not_equal('TransactionReply_transactionResult', Res1, Res2);
 	false ->
@@ -4682,8 +4682,8 @@ chk_PropertyParm_extraInfo(EI, EI) ->
     chk_type(fun is_PropertyParm_extraInfo/1, 'PropertyParm_extraInfo', EI);
 chk_PropertyParm_extraInfo({Tag, Val1} = EI1, {Tag, Val2} = EI2) ->
     case is_PropertyParm_extraInfo_tag(Tag) andalso
-	  is_PropertyParm_extraInfo_val(Tag, Val1) andalso
-	  is_PropertyParm_extraInfo_val(Tag, Val2) of
+        is_PropertyParm_extraInfo_val(Tag, Val1) andalso
+        is_PropertyParm_extraInfo_val(Tag, Val2) of
 	true ->
 	    chk_PropertyParm_extraInfo_val(Tag, Val1, Val2);
 	false ->
@@ -4691,9 +4691,9 @@ chk_PropertyParm_extraInfo({Tag, Val1} = EI1, {Tag, Val2} = EI2) ->
     end;
 chk_PropertyParm_extraInfo({Tag1, Val1} = EI1, {Tag2, Val2} = EI2) ->
     case is_PropertyParm_extraInfo_tag(Tag1) andalso
-	   is_PropertyParm_extraInfo_val(Tag1, Val1) andalso
-	  is_PropertyParm_extraInfo_tag(Tag2) andalso
-	   is_PropertyParm_extraInfo_val(Tag2, Val2) of
+        is_PropertyParm_extraInfo_val(Tag1, Val1) andalso
+        is_PropertyParm_extraInfo_tag(Tag2) andalso
+        is_PropertyParm_extraInfo_val(Tag2, Val2) of
 	true ->
 	    not_equal('PropertyParm_extraInfo', EI1, EI2);
 	false ->
@@ -5901,8 +5901,8 @@ chk_SigParameter_extraInfo(EI, EI) ->
     chk_type(fun is_SigParameter_extraInfo/1, 'SigParameter_extraInfo', EI);
 chk_SigParameter_extraInfo({Tag, Val1} = EI1, {Tag, Val2} = EI2) ->
     case is_SigParameter_extraInfo_tag(Tag) andalso
-	  is_SigParameter_extraInfo_val(Tag, Val1) andalso
-	  is_SigParameter_extraInfo_val(Tag, Val2) of
+        is_SigParameter_extraInfo_val(Tag, Val1) andalso
+        is_SigParameter_extraInfo_val(Tag, Val2) of
 	true ->
 	    chk_SigParameter_extraInfo_val(Tag, Val1, Val2);
 	false ->
@@ -5910,9 +5910,9 @@ chk_SigParameter_extraInfo({Tag, Val1} = EI1, {Tag, Val2} = EI2) ->
     end;
 chk_SigParameter_extraInfo({Tag1, Val1} = EI1, {Tag2, Val2} = EI2) ->
     case is_SigParameter_extraInfo_tag(Tag1) andalso
-	   is_SigParameter_extraInfo_val(Tag1, Val1) andalso
-	  is_SigParameter_extraInfo_tag(Tag2) andalso
-	   is_SigParameter_extraInfo_val(Tag2, Val2) of
+        is_SigParameter_extraInfo_val(Tag1, Val1) andalso
+        is_SigParameter_extraInfo_tag(Tag2) andalso
+        is_SigParameter_extraInfo_val(Tag2, Val2) of
 	true ->
 	    not_equal('SigParameter_extraInfo', EI1, EI2);
 	false ->

@@ -4406,17 +4406,17 @@ do_so_priority(Config, Addr) ->
 	    case os:type() of
 		{unix,linux} ->
 		    case os:version() of
-			{X,Y,_} when X > 2 orelse X =:= 2 andalso Y >= 4 ->
+                        {X,Y,_} when X > 2 orelse X =:= 2 andalso Y >= 4 ->
                             ?P("so prio should work on this version: "
                                "~n      ~p", [_X]),
 			    ct:fail({error,
-					   "so_priority should work on this "
-					   "OS, but does not"});
+                                     "so_priority should work on this "
+                                     "OS, but does not"});
 			_ ->
 			    {skip, "SO_PRIORITY not suppoorted"}
 		    end;
 		_ ->
-		   {skip, "SO_PRIORITY not suppoorted"}
+                    {skip, "SO_PRIORITY not suppoorted"}
 	    end
     end.
 

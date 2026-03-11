@@ -965,7 +965,7 @@ analyse([], [This={M,F,A}|Path], Visited, ErrCnt0) ->
 	  gb_sets, gb_trees, erts_code_purger, erts_internal, code,
 	  prim_zip, zlib],
     ErrCnt1 =
-	case lists:member(M, OK) orelse erlang:is_builtin(M,F,A) of
+        case lists:member(M, OK) orelse erlang:is_builtin(M,F,A) of
 	    true ->
 		0;
 	    false ->
