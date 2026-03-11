@@ -1240,7 +1240,7 @@ cre_Signal(N, SID, ST, Dur, NC, KA, [H|_] = SPL)
   when is_list(N),
        is_integer(SID) orelse SID == asn1_NOVALUE,
        ST == brief orelse ST == onOff orelse ST == timeOut orelse ST == asn1_NOVALUE,
-       is_integer(Dur) andalso 0 =< Dur andalso Dur =< 65535 orelse Dur == asm1_NOVALUE,
+       is_integer(Dur) andalso 0 =< Dur andalso Dur =< 65535 orelse Dur == asn1_NOVALUE,
        is_list(NC),
        is_boolean(KA) orelse KA == asn1_NOVALUE,
        is_record(H, 'SigParameter') ->
